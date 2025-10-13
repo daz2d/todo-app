@@ -426,6 +426,209 @@ def create_project_structure(project_dir: Path) -> GitManager:
     return GitManager(project_dir)
 
 # =============================================================================
+# ARCHITECTURE AGENT
+# =============================================================================
+
+class ArchitectAgent:
+    """Technical Architecture and Technology Stack Decision Agent"""
+    
+    def __init__(self, llm, git_manager, qa_manager):
+        self.llm = llm
+        self.git = git_manager
+        self.qa_manager = qa_manager
+        self.prompt = ChatPromptTemplate.from_template("""
+        You are a Senior Software Architect with 15+ years of experience designing scalable systems.
+        
+        Project Brief: {project_brief}
+        Requirements: {requirements}
+        
+        Analyze the requirements and make informed decisions about:
+        
+        1. **Backend Technology Stack:**
+           - Programming language (Python, Node.js, Java, Go, etc.)
+           - Web framework (FastAPI, Express, Spring Boot, etc.)
+           - Database choice (PostgreSQL, MongoDB, SQLite, etc.)
+           - Authentication method
+           - API design pattern (REST, GraphQL, etc.)
+        
+        2. **Frontend Technology Stack:**
+           - Framework/Library (React, Vue, Angular, or vanilla JS)
+           - CSS framework (Tailwind, Bootstrap, Material-UI, etc.)
+           - Build tools and bundlers
+           - State management approach
+        
+        3. **Infrastructure & DevOps:**
+           - Deployment strategy
+           - Database hosting
+           - Environment management
+           - Testing frameworks
+        
+        4. **Architecture Patterns:**
+           - Overall architecture (Monolith, Microservices, etc.)
+           - Code organization pattern (MVC, Hexagonal, Clean Architecture, etc.)
+           - Data flow and API design
+        
+        Provide specific technology choices with clear reasoning. Consider:
+        - Project complexity and scale
+        - Development team size and expertise
+        - Performance requirements
+        - Deployment constraints
+        - Maintenance and evolution needs
+        
+        Format your response as a structured technical specification with clear sections for each technology choice.
+        """)
+    
+    def design_architecture(self, state: DevelopmentState) -> DevelopmentState:
+        # Check if architecture already exists
+        arch_path = self.git.project_dir / "docs" / "architecture" / "tech_stack.md"
+        if arch_path.exists():
+            print("🏗️ Architect: Architecture specification already exists, skipping...")
+            # Read existing architecture
+            architecture = self.git.get_file_content("docs/architecture/tech_stack.md")
+            state["architecture"] = architecture
+            return state
+        
+        print("🏗️ Architect: Designing technical architecture and selecting tech stack...")
+        
+        # Get requirements from Product Manager
+        requirements = state.get("requirements", "") or self.git.get_file_content("docs/prd/requirements.md")
+        
+        # Generate architecture specification
+        chain = self.prompt | self.llm | StrOutputParser()
+        architecture = chain.invoke({
+            "project_brief": state["project_brief"],
+            "requirements": requirements
+        })
+        
+        # Write architecture documents
+        self.git.write_file("docs/architecture/tech_stack.md", architecture)
+        
+        # Create detailed technology decision records
+        self._create_technology_decision_records(architecture)
+        
+        # Create development guidelines
+        self._create_development_guidelines(architecture)
+        
+        # Self-review the architecture
+        print("🔍 Architect: Conducting self-review...")
+        self_review = self.qa_manager.conduct_self_review(
+            "Architect",
+            architecture,
+            "Technical Architecture and Technology Decisions", 
+            state["project_brief"]
+        )
+        
+        # Store review results
+        if "agent_reviews" not in state:
+            state["agent_reviews"] = {}
+        state["agent_reviews"]["Architect"] = {
+            "self_review": self_review,
+            "peer_reviews": [],
+            "issues": self_review["issues"],
+            "revisions": []
+        }
+        
+        # Check if revision is needed
+        if not self_review["gate_passed"]:
+            print("⚠️ Architect: Self-review identified issues, creating revision...")
+            revised_architecture = self._revise_architecture(architecture, self_review["issues"], requirements)
+            
+            # Write revised architecture
+            self.git.write_file("docs/architecture/tech_stack.md", revised_architecture)
+            self._create_technology_decision_records(revised_architecture)
+            self._create_development_guidelines(revised_architecture)
+            
+            architecture = revised_architecture
+        
+        # Commit architecture
+        self.git.commit_changes("docs: Add technical architecture and tech stack specification", "Architect")
+        
+        # Store in state for other agents
+        state["architecture"] = architecture
+        
+        return state
+    
+    def _create_technology_decision_records(self, architecture: str):
+        """Create ADR (Architecture Decision Records)"""
+        adr_content = f"""# Architecture Decision Records (ADR)
+
+## ADR-001: Technology Stack Selection
+
+### Status
+Accepted
+
+### Context
+{architecture[:500]}...
+
+### Decision
+Based on the project requirements and constraints, we have selected the technology stack as outlined in the architecture specification.
+
+### Consequences
+- **Positive**: Clear technology direction for development team
+- **Positive**: Consistent tooling and patterns across the project  
+- **Negative**: Learning curve for team members unfamiliar with chosen technologies
+- **Risk**: Technology choices may need revision as requirements evolve
+
+### Compliance
+All development agents must follow the technology choices specified in this ADR.
+"""
+        self.git.write_file("docs/architecture/adr-001-tech-stack.md", adr_content)
+    
+    def _create_development_guidelines(self, architecture: str):
+        """Create development guidelines based on architecture"""
+        guidelines_content = f"""# Development Guidelines
+
+## Technology Stack Compliance
+
+All development work must adhere to the architecture specification in `tech_stack.md`.
+
+## Code Organization
+
+Follow the architectural patterns specified in the tech stack document.
+
+## API Design
+
+RESTful API design following OpenAPI 3.0 specification.
+
+## Database Design
+
+Follow the database technology and patterns specified in the architecture.
+
+## Testing Strategy
+
+Implement comprehensive testing following the testing framework choices in the architecture.
+
+## Deployment
+
+Follow the deployment strategy outlined in the architecture specification.
+"""
+        self.git.write_file("docs/architecture/development_guidelines.md", guidelines_content)
+    
+    def _revise_architecture(self, original_architecture: str, issues: List[str], requirements: str) -> str:
+        """Revise architecture based on self-review issues"""
+        revision_prompt = ChatPromptTemplate.from_template("""
+        You need to revise this technical architecture based on identified issues:
+        
+        Original Architecture:
+        {original_architecture}
+        
+        Requirements:
+        {requirements}
+        
+        Issues to Address:
+        {issues}
+        
+        Provide a revised architecture specification that addresses all the issues while maintaining technical coherence.
+        """)
+        
+        chain = revision_prompt | self.llm | StrOutputParser()
+        return chain.invoke({
+            "original_architecture": original_architecture,
+            "requirements": requirements,
+            "issues": "\n".join([f"- {issue}" for issue in issues])
+        })
+
+# =============================================================================
 # QUALITY ASSURANCE SYSTEM
 # =============================================================================
 
@@ -751,7 +954,17 @@ class ProductManagerAgent:
         """)
         
     def analyze_project(self, state: DevelopmentState) -> DevelopmentState:
+        # Check if PRD already exists
+        prd_path = self.git.project_dir / "docs" / "prd" / "requirements.md"
+        if prd_path.exists():
+            print("📋 Product Manager: PRD already exists, skipping requirements generation...")
+            # Read existing requirements
+            requirements = self.git.get_file_content("docs/prd/requirements.md")
+            state["requirements"] = requirements
+            return state
+        
         # Work directly on main branch
+        print("📋 Product Manager: Generating PRD...")
         
         # Generate requirements
         chain = self.prompt | self.llm | StrOutputParser()
@@ -920,26 +1133,32 @@ class UICoderAgent:
         self.prompt = ChatPromptTemplate.from_template("""
         You are a Frontend/UI Developer specializing in modern web development.
         
-        Requirements from docs/prd/requirements.md: {requirements}
+        Project Requirements: {requirements}
+        Technical Architecture: {architecture}
         Backend API Info: {backend_api_info}
         Existing Frontend Files: {existing_frontend_files}
         
-        Your task is to:
-        1. Create HTML structure with semantic markup
-        2. Write CSS for responsive, modern styling
-        3. Add JavaScript for interactivity following clean code principles
-        4. Ensure accessibility (ARIA labels, semantic HTML)
-        5. Make it mobile-responsive
-        6. Integrate with backend APIs through adapters (Hexagonal Architecture)
-        7. Implement clean, maintainable code with proper separation of concerns
+        CRITICAL: You MUST follow the frontend technology stack specified in the architecture document.
+        Use ONLY the framework, CSS framework, and tools specified by the Architect.
         
-        Follow these development guidelines:
-        - Write clean, readable code with meaningful names
-        - Use small, focused functions with single responsibilities
-        - Implement proper error handling and validation
-        - Follow Hexagonal Architecture: separate UI from business logic
-        - Create adapters for external dependencies (API calls, storage)
-        - Keep code DRY but prioritize readability over cleverness
+        Your task is to:
+        1. Implement frontend using the EXACT technology stack from the architecture
+        2. Use the specified frontend framework (React, Vue, Angular, or vanilla JS)
+        3. Use the specified CSS framework (Tailwind, Bootstrap, Material-UI, etc.)
+        4. Follow the specified build tools and bundlers
+        5. Implement state management using the specified approach
+        6. Follow the architectural patterns specified for frontend
+        7. Integrate with backend APIs using the patterns specified in architecture
+        
+        Architecture Compliance Requirements:
+        - Use the exact frontend framework specified (React/Vue/Angular/Vanilla)
+        - Use the exact CSS framework specified
+        - Use the specified build tools and bundlers
+        - Follow the state management approach specified
+        - Implement the architectural patterns specified
+        - Follow the code organization patterns specified
+        
+        Create frontend code that strictly adheres to the architectural decisions.
         
         Create clean, production-ready frontend code.
         
@@ -966,10 +1185,18 @@ class UICoderAgent:
         """)
         
     def create_ui(self, state: DevelopmentState) -> DevelopmentState:
+        # Check if frontend files already exist
+        index_html_path = self.git.project_dir / "frontend" / "index.html"
+        if index_html_path.exists():
+            print("🎨 UI Developer: Frontend files already exist, skipping generation...")
+            return state
+        
         # Work directly on main branch
+        print("🎨 UI Developer: Generating frontend files...")
         
         # Read existing project files
         requirements = self.git.get_file_content("docs/prd/requirements.md")
+        architecture = state.get("architecture", "") or self.git.get_file_content("docs/architecture/tech_stack.md")
         backend_api_info = self.git.get_file_content("docs/api/api_spec.md")
         
         # Check existing frontend files
@@ -979,6 +1206,7 @@ class UICoderAgent:
         chain = self.prompt | self.llm | StrOutputParser()
         ui_code = chain.invoke({
             "requirements": requirements,
+            "architecture": architecture,
             "backend_api_info": backend_api_info,
             "existing_frontend_files": existing_files
         })
@@ -1084,21 +1312,75 @@ class UICoderAgent:
         return "\n".join(frontend_files) if frontend_files else "No existing frontend files"
     
     def _write_frontend_files(self, ui_code: str):
-        """Extract code blocks and write to appropriate files"""
-        # Extract HTML
-        html_matches = re.findall(r'```html\n(.*?)```', ui_code, re.DOTALL)
-        if html_matches:
-            self.git.write_file("frontend/index.html", html_matches[0].strip())
+        """Generate individual frontend files using CodeLlama"""
+        print(f"🎨 Generating frontend files with CodeLlama...")
         
-        # Extract CSS
-        css_matches = re.findall(r'```css\n(.*?)```', ui_code, re.DOTALL)
-        if css_matches:
-            self.git.write_file("frontend/src/styles.css", css_matches[0].strip())
+        files_created = 0
         
-        # Extract JavaScript
-        js_matches = re.findall(r'```javascript\n(.*?)```', ui_code, re.DOTALL)
-        if js_matches:
-            self.git.write_file("frontend/src/app.js", js_matches[0].strip())
+        # HTML Chain
+        html_chain = ChatPromptTemplate.from_template(
+            "Generate ONLY the HTML code for {file_description}. "
+            "Based on these requirements: {requirements}. "
+            "Return only clean HTML with no markdown formatting, no explanations."
+        ) | self.llm | StrOutputParser()
+        
+        # CSS Chain  
+        css_chain = ChatPromptTemplate.from_template(
+            "Generate ONLY the CSS code for {file_description}. "
+            "Based on these requirements: {requirements}. "
+            "Return only clean CSS with no markdown formatting, no explanations."
+        ) | self.llm | StrOutputParser()
+        
+        # JavaScript Chain
+        js_chain = ChatPromptTemplate.from_template(
+            "Generate ONLY the JavaScript code for {file_description}. "
+            "Based on these requirements: {requirements}. "
+            "Return only clean JavaScript with no markdown formatting, no explanations."
+        ) | self.llm | StrOutputParser()
+        
+        # Generate HTML
+        try:
+            html_code = html_chain.invoke({
+                "file_description": "index.html - Complete HTML page for todo app with form inputs, task list, and responsive layout",
+                "requirements": ui_code[:1000]
+            })
+            if html_code and len(html_code.strip()) > 50:
+                self.git.write_file("frontend/index.html", html_code.strip())
+                files_created += 1
+            else:
+                print("⚠️ Generated HTML was too short or empty")
+        except Exception as e:
+            print(f"⚠️ Error generating HTML: {e}")
+        
+        # Generate CSS
+        try:
+            css_code = css_chain.invoke({
+                "file_description": "src/styles.css - Modern responsive CSS styles for todo app with animations and mobile support",
+                "requirements": ui_code[:1000]
+            })
+            if css_code and len(css_code.strip()) > 50:
+                self.git.write_file("frontend/src/styles.css", css_code.strip())
+                files_created += 1
+            else:
+                print("⚠️ Generated CSS was too short or empty")
+        except Exception as e:
+            print(f"⚠️ Error generating CSS: {e}")
+        
+        # Generate JavaScript
+        try:
+            js_code = js_chain.invoke({
+                "file_description": "src/app.js - JavaScript for todo app with API calls, DOM manipulation, and event handling",
+                "requirements": ui_code[:1000]
+            })
+            if js_code and len(js_code.strip()) > 50:
+                self.git.write_file("frontend/src/app.js", js_code.strip())
+                files_created += 1
+            else:
+                print("⚠️ Generated JavaScript was too short or empty")
+        except Exception as e:
+            print(f"⚠️ Error generating JavaScript: {e}")
+        
+        print(f"🎨 Created {files_created} frontend files with CodeLlama")
     
     def _create_package_json(self):
         """Create package.json for the frontend"""
@@ -1189,30 +1471,32 @@ class BackendCoderAgent:
         self.prompt = ChatPromptTemplate.from_template("""
         You are a Backend Developer specializing in server-side development.
         
-        Requirements from docs/prd/requirements.md: {requirements}
+        Project Requirements: {requirements}
+        Technical Architecture: {architecture}
         Frontend Files Summary: {frontend_summary}
         Existing Backend Structure: {existing_backend}
         
+        CRITICAL: You MUST follow the technology stack specified in the architecture document.
+        Use ONLY the programming language, framework, and database specified by the Architect.
+        
         Your task is to:
-        1. Design RESTful API endpoints following Domain Driven Design
-        2. Implement Hexagonal Architecture (Ports and Adapters pattern)
-        3. Create clean, well-structured server-side logic (Python/FastAPI)
-        4. Design database schema aligned with domain model
-        5. Implement comprehensive error handling and validation
-        6. Add authentication and security best practices
-        7. Structure code for testability and maintainability
+        1. Implement backend using the EXACT technology stack from the architecture
+        2. Design API endpoints following the architecture's API design patterns
+        3. Use the specified web framework (FastAPI, Express, Spring Boot, etc.)
+        4. Implement the database technology chosen by the architect
+        5. Follow the architectural patterns specified (Hexagonal, MVC, etc.)
+        6. Implement authentication using the method specified in architecture
+        7. Structure code according to the architecture's code organization patterns
         
-        Follow these architectural guidelines:
-        - Implement Hexagonal Architecture with clear ports and adapters
-        - Separate domain logic from infrastructure concerns
-        - Create domain entities, repositories, and services
-        - Use dependency injection for testability
-        - Follow clean code principles: meaningful names, small functions, single responsibility
-        - Design for Domain Driven Design: bounded contexts, aggregates, domain services
-        - Structure code to support Test Driven Development (TDD)
-        - Keep business logic independent of frameworks and databases
+        Architecture Compliance Requirements:
+        - Use the exact programming language specified
+        - Use the exact web framework specified  
+        - Use the exact database technology specified
+        - Follow the architectural patterns specified
+        - Implement the API design pattern specified (REST, GraphQL, etc.)
+        - Use the testing framework specified in architecture
         
-        Create robust, scalable, and maintainable backend code.
+        Create backend code that strictly adheres to the architectural decisions.
         
         Format your response as:
         ## Backend Implementation
@@ -1248,10 +1532,18 @@ class BackendCoderAgent:
         """)
         
     def create_backend(self, state: DevelopmentState) -> DevelopmentState:
+        # Check if backend files already exist
+        main_py_path = self.git.project_dir / "backend" / "main.py"
+        if main_py_path.exists():
+            print("🔧 Backend Developer: Backend files already exist, skipping generation...")
+            return state
+        
         # Work directly on main branch
+        print("🔧 Backend Developer: Generating backend files...")
         
         # Read project context
         requirements = self.git.get_file_content("docs/prd/requirements.md")
+        architecture = state.get("architecture", "") or self.git.get_file_content("docs/architecture/tech_stack.md")
         frontend_summary = self._get_frontend_summary()
         existing_backend = self._get_existing_backend_structure()
         
@@ -1259,6 +1551,7 @@ class BackendCoderAgent:
         chain = self.prompt | self.llm | StrOutputParser()
         backend_code = chain.invoke({
             "requirements": requirements,
+            "architecture": architecture,
             "frontend_summary": frontend_summary,
             "existing_backend": existing_backend
         })
@@ -1304,56 +1597,93 @@ class BackendCoderAgent:
         return "\n".join(backend_files) if backend_files else "No existing backend files"
     
     def _write_backend_files(self, backend_code: str):
-        """Write backend files following Hexagonal Architecture"""
-        print(f"🔍 Backend code length: {len(backend_code)} chars")
+        """Generate individual backend files using CodeLlama"""
+        print(f"🔍 Generating backend files with CodeLlama...")
         
-        # Save the full backend code for debugging
-        self.git.write_file("backend/generated_code.md", f"# Generated Backend Code\n\n{backend_code}")
-        
-        # Extract and write different code blocks
         files_created = 0
+        chain = ChatPromptTemplate.from_template(
+            "Generate ONLY the Python code for {file_description}. "
+            "Based on these requirements: {requirements}. "
+            "Return only clean Python code with no markdown formatting, no explanations, no comments about the task."
+        ) | self.llm | StrOutputParser()
         
-        # Main FastAPI application
-        main_py_matches = re.findall(r'```python\n# main\.py\n(.*?)```', backend_code, re.DOTALL)
-        if main_py_matches:
-            self.git.write_file("backend/main.py", main_py_matches[0].strip())
-            files_created += 1
-        else:
-            print("⚠️ No main.py found in generated code")
+        # Generate main.py
+        try:
+            main_py_code = chain.invoke({
+                "file_description": "main.py - FastAPI application with endpoints for todo tasks (GET, POST, PUT, DELETE /tasks)",
+                "requirements": backend_code[:1000]  # Truncate for context
+            })
+            if main_py_code and len(main_py_code.strip()) > 50:
+                self.git.write_file("backend/main.py", main_py_code.strip())
+                files_created += 1
+            else:
+                print("⚠️ Generated main.py was too short or empty")
+        except Exception as e:
+            print(f"⚠️ Error generating main.py: {e}")
         
-        # Domain models
-        domain_matches = re.findall(r'```python\n# domain.*?\n(.*?)```', backend_code, re.DOTALL)
-        if domain_matches:
-            self.git.write_file("backend/src/domain/models.py", domain_matches[0].strip())
-            files_created += 1
-        else:
-            print("⚠️ No domain models found in generated code")
+        # Generate domain models
+        try:
+            models_code = chain.invoke({
+                "file_description": "src/domain/models.py - Pydantic domain models for Task and User entities with business logic",
+                "requirements": backend_code[:1000]
+            })
+            if models_code and len(models_code.strip()) > 50:
+                self.git.write_file("backend/src/domain/models.py", models_code.strip())
+                files_created += 1
+            else:
+                print("⚠️ Generated models.py was too short or empty")
+        except Exception as e:
+            print(f"⚠️ Error generating models.py: {e}")
         
-        # Application services
-        service_matches = re.findall(r'```python\n# .*service.*?\n(.*?)```', backend_code, re.DOTALL)
-        if service_matches:
-            self.git.write_file("backend/src/application/services.py", service_matches[0].strip())
-            files_created += 1
-        else:
-            print("⚠️ No services found in generated code")
+        # Generate services
+        try:
+            services_code = chain.invoke({
+                "file_description": "src/application/services.py - Business logic services for task operations (create, read, update, delete)",
+                "requirements": backend_code[:1000]
+            })
+            if services_code and len(services_code.strip()) > 50:
+                self.git.write_file("backend/src/application/services.py", services_code.strip())
+                files_created += 1
+            else:
+                print("⚠️ Generated services.py was too short or empty")
+        except Exception as e:
+            print(f"⚠️ Error generating services.py: {e}")
         
-        # Infrastructure (database, repositories)
-        infra_matches = re.findall(r'```python\n# .*infrastructure.*?\n(.*?)```', backend_code, re.DOTALL)
-        if infra_matches:
-            self.git.write_file("backend/src/infrastructure/database.py", infra_matches[0].strip())
-            files_created += 1
-        else:
-            print("⚠️ No infrastructure code found in generated code")
+        # Generate database/repository
+        try:
+            db_code = chain.invoke({
+                "file_description": "src/infrastructure/database.py - Database connection and repository pattern for task persistence",
+                "requirements": backend_code[:1000]
+            })
+            if db_code and len(db_code.strip()) > 50:
+                self.git.write_file("backend/src/infrastructure/database.py", db_code.strip())
+                files_created += 1
+            else:
+                print("⚠️ Generated database.py was too short or empty")
+        except Exception as e:
+            print(f"⚠️ Error generating database.py: {e}")
         
-        # SQL schema
-        sql_matches = re.findall(r'```sql\n(.*?)```', backend_code, re.DOTALL)
-        if sql_matches:
-            self.git.write_file("backend/schema.sql", sql_matches[0].strip())
-            files_created += 1
-        else:
-            print("⚠️ No SQL schema found in generated code")
+        # Generate SQL schema (using different prompt for SQL)
+        try:
+            sql_chain = ChatPromptTemplate.from_template(
+                "Generate ONLY the SQL schema for {file_description}. "
+                "Based on these requirements: {requirements}. "
+                "Return only clean SQL with no markdown formatting, no explanations."
+            ) | self.llm | StrOutputParser()
+            
+            schema_sql = sql_chain.invoke({
+                "file_description": "todo app database with users and tasks tables, including indexes",
+                "requirements": backend_code[:1000]
+            })
+            if schema_sql and len(schema_sql.strip()) > 50:
+                self.git.write_file("backend/schema.sql", schema_sql.strip())
+                files_created += 1
+            else:
+                print("⚠️ Generated schema.sql was too short or empty")
+        except Exception as e:
+            print(f"⚠️ Error generating schema.sql: {e}")
         
-        print(f"📁 Created {files_created} backend files")
+        print(f"📁 Created {files_created} backend files with CodeLlama")
     
     def _create_api_documentation(self, backend_code: str):
         """Create API documentation from backend code"""
@@ -1916,8 +2246,12 @@ python-multipart==0.0.6
 def create_development_workflow(git_manager: GitManager):
     """Creates the LangGraph workflow for the development team"""
     
+    # Initialize QA manager first (needed by architect)
+    qa_manager = QualityAssuranceManager(git_manager)
+    
     # Initialize agents with Git integration
     pm_agent = ProductManagerAgent(git_manager)
+    architect_agent = ArchitectAgent(general_llm, git_manager, qa_manager)  
     ui_agent = UICoderAgent(git_manager)
     backend_agent = BackendCoderAgent(git_manager)
     doc_agent = DocumentationAgent(git_manager)
@@ -1929,6 +2263,7 @@ def create_development_workflow(git_manager: GitManager):
     
     # Add nodes (agents)
     workflow.add_node("product_manager", pm_agent.analyze_project)
+    workflow.add_node("architect", architect_agent.design_architecture)
     workflow.add_node("ui_developer", ui_agent.create_ui)
     workflow.add_node("backend_developer", backend_agent.create_backend)
     workflow.add_node("documentation", doc_agent.create_documentation)
@@ -1937,8 +2272,9 @@ def create_development_workflow(git_manager: GitManager):
     
     # Define workflow edges (dependencies) - Sequential to avoid concurrent updates
     workflow.set_entry_point("product_manager")
-    workflow.add_edge("product_manager", "backend_developer")  # Backend first (provides API)
-    workflow.add_edge("backend_developer", "ui_developer")     # UI second (consumes API)
+    workflow.add_edge("product_manager", "architect")          # Architect defines tech stack after requirements
+    workflow.add_edge("architect", "backend_developer")        # Backend follows architecture decisions
+    workflow.add_edge("backend_developer", "ui_developer")     # UI second (consumes API and follows arch)
     workflow.add_edge("ui_developer", "documentation")
     workflow.add_edge("documentation", "qa_tester")
     workflow.add_edge("qa_tester", "project_manager")
