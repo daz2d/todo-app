@@ -740,12 +740,13 @@ class ArchitectAgent:
             
             ### File Structure
             - Create/modify: `exact/file/path.py`
-            - Dependencies: list specific imports
+            - Dependencies: list specific imports needed
             
             ### Implementation Details
-            - Use {specific_framework} for [specific purpose]
-            - Follow {architectural_pattern} pattern
-            - Implement {specific_interfaces_or_classes}
+            - Use the framework specified in the architecture
+            - Follow the architectural patterns from the tech stack
+            - Implement specific classes and interfaces as needed
+            - Include exact method signatures and return types
             
             ### API Specification (if applicable)
             ```
@@ -758,13 +759,14 @@ class ArchitectAgent:
             ```
             
             ### Testing Requirements
-            - Unit tests for [specific functions]
-            - Integration tests for [specific flows]
+            - Unit tests for specific functions
+            - Integration tests for specific flows
+            - Test file locations and naming conventions
             
             ### Acceptance Criteria (Enhanced)
-            Make the original acceptance criteria more specific and technical.
+            Make the original acceptance criteria more specific and technical with exact implementation details.
             
-            Provide a completely unambiguous technical specification.
+            Provide a completely unambiguous technical specification that a developer can follow step-by-step.
             """)
             
             chain = enhancement_prompt | self.llm | StrOutputParser()
