@@ -1,11 +1,11 @@
 {
-  "total_tasks": 0,
+  "total_tasks": 6,
   "completed_tasks": 0,
   "current_task": null,
   "task_breakdown": {
     "backend": 0,
-    "frontend": 0,
-    "documentation": 0,
-    "testing": 0
+    "frontend": 1,
+    "documentation": 1,
+    "testing": 1
   }
 }

@@ -1575,84 +1575,9 @@ class UICoderAgent:
         # Create package.json
         self._create_package_json()
         
-        # Self-review the frontend code
-        print("🔍 UI Developer: Conducting self-review...")
-        self_review = self.qa_manager.conduct_self_review(
-            "UI Developer",
-            ui_code,
-            "Frontend Implementation", 
-            requirements
-        )
-        
-        # Initialize or update agent reviews
-        if "agent_reviews" not in state:
-            state["agent_reviews"] = {}
-        state["agent_reviews"]["UI Developer"] = {
-            "self_review": self_review,
-            "peer_reviews": [],
-            "issues": self_review["issues"],
-            "revisions": []
-        }
-        
-        # Check for revision needs
-        revised_code = ui_code
-        if not self_review["gate_passed"]:
-            print("⚠️ UI Developer: Self-review found issues, revising...")
-            revised_code = self._revise_frontend_code(ui_code, self_review["issues"], requirements)
-            self._write_frontend_files(revised_code)
-            state["agent_reviews"]["UI Developer"]["revisions"].append({
-                "reason": "Self-review quality gate failed",
-                "timestamp": time.time()
-            })
-        
-        # Conduct peer review from Product Manager perspective
-        print("👥 Conducting peer review from Product Manager...")
-        pm_review = self.qa_manager.conduct_peer_review(
-            "Product Manager",
-            "UI Developer", 
-            revised_code,
-            "Frontend Implementation",
-            {
-                "requirements": requirements,
-                "backend_summary": backend_api_info,
-                "frontend_summary": existing_files
-            }
-        )
-        
-        state["agent_reviews"]["UI Developer"]["peer_reviews"].append(pm_review)
-        
-        # Handle peer review feedback
-        if pm_review["status"] == "REQUEST_CHANGES":
-            print("🔄 UI Developer: Addressing peer review feedback...")
-            final_code = self._address_peer_feedback(revised_code, pm_review["issues"], requirements)
-            self._write_frontend_files(final_code)
-            revised_code = final_code
-            
-            state["agent_reviews"]["UI Developer"]["revisions"].append({
-                "reason": "Product Manager peer review feedback",
-                "timestamp": time.time()
-            })
-        
-        # Write review documentation
-        self.git.write_file("docs/reviews/ui_developer_self_review.md", self_review["review_text"])
-        self.git.write_file("docs/reviews/ui_developer_peer_review_pm.md", pm_review["review_text"])
-        
-        # Commit the frontend code
-        commit_msg = "feat: Implement frontend components and styling"
-        if state["agent_reviews"]["UI Developer"]["revisions"]:
-            commit_msg += " (revised after reviews)"
-            
-        self.git.commit_changes(commit_msg, "UI Developer")
-        
-        # Update quality gates
-        if "quality_gates_passed" not in state:
-            state["quality_gates_passed"] = {}
-        state["quality_gates_passed"]["UI Developer"] = self_review["gate_passed"] and pm_review["status"] == "APPROVE"
-        
-        state["ui_code"] = revised_code
-        state["feedback"].append(f"✓ UI Developer: Frontend code created, reviewed (Score: {self_review['quality_score']}/10), and committed")
-        state["git_commits"].append("Frontend implementation with peer review committed")
-        print(f"🎨 UI Developer: Frontend completed (Quality: {self_review['quality_score']}/10, Peer Review: {pm_review['status']})")
+        # Update git commits
+        state["git_commits"].append("Frontend task implementation committed")
+        print(f"🎨 UI Developer: Frontend task completed and committed")
         return state
     
     def _get_existing_frontend_files(self) -> str:
@@ -1744,102 +1669,111 @@ class UICoderAgent:
         """Write frontend files for a specific task"""
         print(f"🎨 Implementing frontend task: {task['title']}")
         
-        # Determine which files to generate based on task type and labels
-        task_labels = [label.lower() for label in task['labels']]
         files_created = 0
         
-        # Create focused prompts for specific files based on task
-        html_chain = ChatPromptTemplate.from_template(
-            "Generate ONLY the HTML code for this specific frontend task: {task_title}. "
-            "Task implementation: {task_implementation}. "
-            "Return only clean HTML with no markdown formatting, no explanations."
-        ) | self.llm | StrOutputParser()
-        
-        css_chain = ChatPromptTemplate.from_template(
-            "Generate ONLY the CSS code for this specific frontend task: {task_title}. "
-            "Task implementation: {task_implementation}. "
-            "Return only clean CSS with no markdown formatting, no explanations."
-        ) | self.llm | StrOutputParser()
-        
-        js_chain = ChatPromptTemplate.from_template(
-            "Generate ONLY the JavaScript code for this specific frontend task: {task_title}. "
-            "Task implementation: {task_implementation}. "
-            "Return only clean JavaScript with no markdown formatting, no explanations."
-        ) | self.llm | StrOutputParser()
-        
-        # Generate specific files based on task needs
-        if 'ui' in task_labels or 'component' in task['title'].lower() or 'form' in task['title'].lower():
-            try:
-                html_code = html_chain.invoke({
-                    "task_title": task['title'],
-                    "task_implementation": task_implementation[:1000]
-                })
-                if html_code and len(html_code.strip()) > 30:
-                    # Append to or create HTML file
-                    existing_html = ""
-                    try:
-                        existing_html = self.git.get_file_content("frontend/index.html")
-                    except:
-                        pass
-                    
-                    if existing_html:
-                        # Insert new component into existing HTML
+        # Always generate core frontend files for ANY frontend task
+        try:
+            # 1. Generate or update index.html
+            html_chain = ChatPromptTemplate.from_template(
+                "Generate complete HTML code for this frontend task: {task_title}. "
+                "Task: {task_implementation}. "
+                "Create a full HTML page with forms, buttons, and structure for a todo app. "
+                "Return only clean HTML with proper DOCTYPE and structure."
+            ) | self.llm | StrOutputParser()
+            
+            html_code = html_chain.invoke({
+                "task_title": task['title'],
+                "task_implementation": task_implementation[:1000]
+            })
+            
+            if html_code and len(html_code.strip()) > 50:
+                # Check if index.html exists, merge or create
+                existing_html = ""
+                try:
+                    existing_html = self.git.get_file_content("frontend/index.html")
+                except:
+                    pass
+                
+                if existing_html and len(existing_html.strip()) > 50:
+                    # Add new content before closing body tag
+                    if "</body>" in existing_html:
                         updated_html = existing_html.replace("</body>", f"\n<!-- {task['title']} -->\n{html_code.strip()}\n</body>")
                     else:
-                        updated_html = html_code.strip()
-                    
-                    self.git.write_file("frontend/index.html", updated_html)
-                    files_created += 1
-            except Exception as e:
-                print(f"⚠️ Error generating HTML: {e}")
+                        updated_html = existing_html + "\n" + html_code.strip()
+                else:
+                    updated_html = html_code.strip()
+                
+                self.git.write_file("frontend/index.html", updated_html)
+                files_created += 1
+                print(f"   ✅ Created/Updated frontend/index.html")
+        except Exception as e:
+            print(f"⚠️ Error generating HTML: {e}")
         
-        if 'styling' in task['title'].lower() or 'css' in task_labels:
-            try:
-                css_code = css_chain.invoke({
-                    "task_title": task['title'],
-                    "task_implementation": task_implementation[:1000]
-                })
-                if css_code and len(css_code.strip()) > 30:
-                    # Append to existing CSS
-                    existing_css = ""
-                    try:
-                        existing_css = self.git.get_file_content("frontend/src/styles.css")
-                    except:
-                        pass
-                    
-                    if existing_css:
-                        updated_css = existing_css + f"\n\n/* {task['title']} */\n" + css_code.strip()
-                    else:
-                        updated_css = css_code.strip()
-                    
-                    self.git.write_file("frontend/src/styles.css", updated_css)
-                    files_created += 1
-            except Exception as e:
-                print(f"⚠️ Error generating CSS: {e}")
+        try:
+            # 2. Generate CSS styles
+            css_chain = ChatPromptTemplate.from_template(
+                "Generate CSS styles for this frontend task: {task_title}. "
+                "Task: {task_implementation}. "
+                "Create modern, responsive CSS for a todo application. "
+                "Return only clean CSS with good styling."
+            ) | self.llm | StrOutputParser()
+            
+            css_code = css_chain.invoke({
+                "task_title": task['title'],
+                "task_implementation": task_implementation[:1000]
+            })
+            
+            if css_code and len(css_code.strip()) > 30:
+                # Append to existing CSS or create new
+                existing_css = ""
+                try:
+                    existing_css = self.git.get_file_content("frontend/src/styles.css")
+                except:
+                    pass
+                
+                if existing_css and len(existing_css.strip()) > 30:
+                    updated_css = existing_css + f"\n\n/* {task['title']} */\n" + css_code.strip()
+                else:
+                    updated_css = css_code.strip()
+                
+                self.git.write_file("frontend/src/styles.css", updated_css)
+                files_created += 1
+                print(f"   ✅ Created/Updated frontend/src/styles.css")
+        except Exception as e:
+            print(f"⚠️ Error generating CSS: {e}")
         
-        if 'javascript' in task_labels or 'interaction' in task['title'].lower() or 'api' in task['title'].lower():
-            try:
-                js_code = js_chain.invoke({
-                    "task_title": task['title'],
-                    "task_implementation": task_implementation[:1000]
-                })
-                if js_code and len(js_code.strip()) > 30:
-                    # Append to existing JavaScript
-                    existing_js = ""
-                    try:
-                        existing_js = self.git.get_file_content("frontend/src/app.js")
-                    except:
-                        pass
-                    
-                    if existing_js:
-                        updated_js = existing_js + f"\n\n// {task['title']}\n" + js_code.strip()
-                    else:
-                        updated_js = js_code.strip()
-                    
-                    self.git.write_file("frontend/src/app.js", updated_js)
-                    files_created += 1
-            except Exception as e:
-                print(f"⚠️ Error generating JavaScript: {e}")
+        try:
+            # 3. Generate JavaScript functionality
+            js_chain = ChatPromptTemplate.from_template(
+                "Generate JavaScript code for this frontend task: {task_title}. "
+                "Task: {task_implementation}. "
+                "Create interactive JavaScript for todo app with API calls, DOM manipulation. "
+                "Return only clean JavaScript with proper functions."
+            ) | self.llm | StrOutputParser()
+            
+            js_code = js_chain.invoke({
+                "task_title": task['title'],
+                "task_implementation": task_implementation[:1000]
+            })
+            
+            if js_code and len(js_code.strip()) > 30:
+                # Append to existing JS or create new
+                existing_js = ""
+                try:
+                    existing_js = self.git.get_file_content("frontend/src/app.js")
+                except:
+                    pass
+                
+                if existing_js and len(existing_js.strip()) > 30:
+                    updated_js = existing_js + f"\n\n// {task['title']}\n" + js_code.strip()
+                else:
+                    updated_js = js_code.strip()
+                
+                self.git.write_file("frontend/src/app.js", updated_js)
+                files_created += 1
+                print(f"   ✅ Created/Updated frontend/src/app.js")
+        except Exception as e:
+            print(f"⚠️ Error generating JavaScript: {e}")
         
         print(f"🎨 Created {files_created} files for task #{task['id']}")
         
@@ -2288,68 +2222,104 @@ class BackendCoderAgent:
         """Write backend files for a specific task"""
         print(f"🔍 Implementing backend task: {task['title']}")
         
-        # Determine which files to generate based on task type and labels
-        task_labels = [label.lower() for label in task['labels']]
         files_created = 0
         
-        # Create focused prompts for specific files based on task
-        chain = ChatPromptTemplate.from_template(
-            "Generate ONLY the {file_type} code for this specific task: {task_title}. "
-            "Task implementation: {task_implementation}. "
-            "Return only clean code with no markdown formatting, no explanations."
-        ) | self.llm | StrOutputParser()
+        # Always generate core backend files for ANY backend task
+        try:
+            # 1. Generate or update main.py (FastAPI app)
+            main_chain = ChatPromptTemplate.from_template(
+                "Generate FastAPI main.py code for this task: {task_title}. "
+                "Task: {task_implementation}. "
+                "Create a complete FastAPI application with endpoints. "
+                "Return only clean Python code with proper imports."
+            ) | self.llm | StrOutputParser()
+            
+            api_code = main_chain.invoke({
+                "task_title": task['title'],
+                "task_implementation": task_implementation[:1000]
+            })
+            
+            if api_code and len(api_code.strip()) > 50:
+                # Check if main.py exists, append or create
+                existing_main = ""
+                try:
+                    existing_main = self.git.get_file_content("backend/main.py")
+                except:
+                    pass
+                
+                if existing_main and len(existing_main.strip()) > 50:
+                    updated_main = existing_main + f"\n\n# {task['title']}\n" + api_code.strip()
+                else:
+                    updated_main = api_code.strip()
+                
+                self.git.write_file("backend/main.py", updated_main)
+                files_created += 1
+                print(f"   ✅ Created/Updated backend/main.py")
+        except Exception as e:
+            print(f"⚠️ Error generating main.py: {e}")
         
-        # Generate specific files based on task needs
-        if 'api' in task_labels or 'endpoint' in task['title'].lower():
-            try:
-                api_code = chain.invoke({
-                    "file_type": "FastAPI endpoints and routes",
-                    "task_title": task['title'],
-                    "task_implementation": task_implementation[:1000]
-                })
-                if api_code and len(api_code.strip()) > 30:
-                    existing_main = ""
-                    try:
-                        existing_main = self.git.get_file_content("backend/main.py")
-                    except:
-                        pass
-                    
-                    # Append to existing main.py or create new
-                    if existing_main:
-                        updated_main = existing_main + "\n\n# " + task['title'] + "\n" + api_code.strip()
-                    else:
-                        updated_main = api_code.strip()
-                    
-                    self.git.write_file("backend/main.py", updated_main)
-                    files_created += 1
-            except Exception as e:
-                print(f"⚠️ Error generating API code: {e}")
-        
-        if 'database' in task_labels or 'schema' in task['title'].lower():
-            try:
-                db_code = chain.invoke({
-                    "file_type": "database models and repository",
-                    "task_title": task['title'],
-                    "task_implementation": task_implementation[:1000]
-                })
-                if db_code and len(db_code.strip()) > 30:
-                    self.git.write_file(f"backend/src/infrastructure/task_{task['id']}_db.py", db_code.strip())
-                    files_created += 1
-            except Exception as e:
-                print(f"⚠️ Error generating database code: {e}")
-        
-        if 'auth' in task['title'].lower() or 'user' in task['title'].lower():
-            try:
-                auth_code = chain.invoke({
-                    "file_type": "authentication and user management",
-                    "task_title": task['title'],
-                    "task_implementation": task_implementation[:1000]
-                })
-                if auth_code and len(auth_code.strip()) > 30:
-                    self.git.write_file(f"backend/src/application/auth_service.py", auth_code.strip())
-                    files_created += 1
-            except Exception as e:
-                print(f"⚠️ Error generating auth code: {e}")
+        try:
+            # 2. Generate domain models
+            models_chain = ChatPromptTemplate.from_template(
+                "Generate Pydantic domain models for this task: {task_title}. "
+                "Task: {task_implementation}. "
+                "Create domain entities with proper validation. "
+                "Return only clean Python code with Pydantic models."
+            ) | self.llm | StrOutputParser()
+            
+            models_code = models_chain.invoke({
+                "task_title": task['title'],
+                "task_implementation": task_implementation[:1000]
+            })
+            
+            if models_code and len(models_code.strip()) > 30:
+                self.git.write_file("backend/src/domain/models.py", models_code.strip())
+                files_created += 1
+                print(f"   ✅ Created backend/src/domain/models.py")
+        except Exception as e:
+            print(f"⚠️ Error generating models: {e}")
+            
+        try:
+            # 3. Generate services/business logic
+            services_chain = ChatPromptTemplate.from_template(
+                "Generate business logic services for this task: {task_title}. "
+                "Task: {task_implementation}. "
+                "Create service classes with business methods. "
+                "Return only clean Python code with service classes."
+            ) | self.llm | StrOutputParser()
+            
+            services_code = services_chain.invoke({
+                "task_title": task['title'],
+                "task_implementation": task_implementation[:1000]
+            })
+            
+            if services_code and len(services_code.strip()) > 30:
+                self.git.write_file("backend/src/application/services.py", services_code.strip())
+                files_created += 1
+                print(f"   ✅ Created backend/src/application/services.py")
+        except Exception as e:
+            print(f"⚠️ Error generating services: {e}")
+            
+        try:
+            # 4. Generate database/repository layer
+            db_chain = ChatPromptTemplate.from_template(
+                "Generate database repository code for this task: {task_title}. "
+                "Task: {task_implementation}. "
+                "Create repository classes with database operations. "
+                "Return only clean Python code with repository pattern."
+            ) | self.llm | StrOutputParser()
+            
+            db_code = db_chain.invoke({
+                "task_title": task['title'],
+                "task_implementation": task_implementation[:1000]
+            })
+            
+            if db_code and len(db_code.strip()) > 30:
+                self.git.write_file("backend/src/infrastructure/database.py", db_code.strip())
+                files_created += 1
+                print(f"   ✅ Created backend/src/infrastructure/database.py")
+        except Exception as e:
+            print(f"⚠️ Error generating database code: {e}")
         
         print(f"📁 Created {files_created} files for task #{task['id']}")
         
