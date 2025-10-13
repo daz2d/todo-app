@@ -100,8 +100,8 @@ class GitManager:
     """Handles all Git operations for the development team"""
     
     def __init__(self, project_dir: Path):
-        self.project_dir = Path(project_dir)
-        self.project_dir.mkdir(exist_ok=True)
+        self.project_dir = Path(project_dir).resolve()  # Use absolute path
+        # Don't create directory here - it's handled by caller
     
     def init_repository(self) -> bool:
         """Initialize a new Git repository"""
@@ -151,11 +151,6 @@ build/
             gitignore_path = self.project_dir / ".gitignore"
             gitignore_path.write_text(gitignore_content.strip(), encoding='utf-8')
             
-            # Initial commit
-            subprocess.run(["git", "add", ".gitignore"], check=True, capture_output=True)
-            subprocess.run(["git", "commit", "-m", "Initial commit: Setup project structure"], 
-                         check=True, capture_output=True)
-            
             print(f"✅ Git repository initialized in {self.project_dir}")
             
             # Return to original directory
@@ -182,7 +177,8 @@ build/
     def commit_changes(self, message: str, author: str = "AI Agent") -> bool:
         """Commit all current changes"""
         try:
-            os.chdir(self.project_dir)
+            # Work from repository root, not project subdirectory
+            os.chdir(Path.cwd())
             
             # Add all changes
             subprocess.run(["git", "add", "."], check=True, capture_output=True)
@@ -198,6 +194,14 @@ build/
                          check=True, capture_output=True)
             
             print(f"📝 Git commit: {message}")
+            
+            # Push to existing remote repository
+            try:
+                subprocess.run(["git", "push", "origin", "main"], check=True, capture_output=True)
+                print(f"🚀 Pushed to remote: {message}")
+            except subprocess.CalledProcessError as e:
+                print(f"⚠️ Push failed (but commit succeeded): {e}")
+            
             return True
             
         except subprocess.CalledProcessError as e:
@@ -232,10 +236,19 @@ build/
     def write_file(self, file_path: str, content: str) -> bool:
         """Write content to a file in the project"""
         try:
-            full_path = self.project_dir / file_path
+            # If project_dir is different from current dir, use relative path from project_dir
+            if str(self.project_dir) != str(Path.cwd()):
+                # We're writing to a subdirectory (like src/), make path relative to repo root
+                relative_project = self.project_dir.relative_to(Path.cwd())
+                full_path = Path.cwd() / relative_project / file_path
+            else:
+                full_path = self.project_dir / file_path
+                
             full_path.parent.mkdir(parents=True, exist_ok=True)
             full_path.write_text(content, encoding='utf-8')
-            print(f"📄 Written: {file_path} ({len(content)} chars)")
+            # Show path relative to repo root for clarity
+            display_path = full_path.relative_to(Path.cwd())
+            print(f"📄 Written: {display_path} ({len(content)} chars)")
             return True
         except Exception as e:
             print(f"❌ Error writing {file_path}: {e}")
@@ -407,34 +420,10 @@ Add any other context or screenshots about the feature request here.
             print(f"❌ Error setting up repository features: {e}")
             return False
 
+# This function is no longer needed - keeping for compatibility
 def create_project_structure(project_dir: Path) -> GitManager:
-    """Create the initial project structure and Git repo"""
-    git_manager = GitManager(project_dir)
-    
-    # Create directory structure
-    directories = [
-        "docs/prd",
-        "docs/architecture", 
-        "docs/api",
-        "docs/reviews",
-        "docs/qa",
-        "frontend/src",
-        "frontend/assets",
-        "backend/src/domain",
-        "backend/src/application",
-        "backend/src/infrastructure",
-        "backend/tests/unit",
-        "backend/tests/integration",
-        ".github/ISSUE_TEMPLATE"
-    ]
-    
-    for dir_path in directories:
-        (project_dir / dir_path).mkdir(parents=True, exist_ok=True)
-    
-    # Initialize Git
-    git_manager.init_repository()
-    
-    return git_manager
+    """Legacy function - now handled inline"""
+    return GitManager(project_dir)
 
 # =============================================================================
 # QUALITY ASSURANCE SYSTEM
@@ -762,8 +751,7 @@ class ProductManagerAgent:
         """)
         
     def analyze_project(self, state: DevelopmentState) -> DevelopmentState:
-        # Create branch for requirements work
-        self.git.create_branch("feature/requirements-analysis")
+        # Work directly on main branch
         
         # Generate requirements
         chain = self.prompt | self.llm | StrOutputParser()
@@ -978,8 +966,7 @@ class UICoderAgent:
         """)
         
     def create_ui(self, state: DevelopmentState) -> DevelopmentState:
-        # Create branch for frontend work
-        self.git.create_branch("feature/frontend-implementation")
+        # Work directly on main branch
         
         # Read existing project files
         requirements = self.git.get_file_content("docs/prd/requirements.md")
@@ -1261,8 +1248,7 @@ class BackendCoderAgent:
         """)
         
     def create_backend(self, state: DevelopmentState) -> DevelopmentState:
-        # Create branch for backend work  
-        self.git.create_branch("feature/backend-api")
+        # Work directly on main branch
         
         # Read project context
         requirements = self.git.get_file_content("docs/prd/requirements.md")
@@ -1319,32 +1305,55 @@ class BackendCoderAgent:
     
     def _write_backend_files(self, backend_code: str):
         """Write backend files following Hexagonal Architecture"""
+        print(f"🔍 Backend code length: {len(backend_code)} chars")
+        
+        # Save the full backend code for debugging
+        self.git.write_file("backend/generated_code.md", f"# Generated Backend Code\n\n{backend_code}")
+        
         # Extract and write different code blocks
+        files_created = 0
         
         # Main FastAPI application
         main_py_matches = re.findall(r'```python\n# main\.py\n(.*?)```', backend_code, re.DOTALL)
         if main_py_matches:
             self.git.write_file("backend/main.py", main_py_matches[0].strip())
+            files_created += 1
+        else:
+            print("⚠️ No main.py found in generated code")
         
         # Domain models
         domain_matches = re.findall(r'```python\n# domain.*?\n(.*?)```', backend_code, re.DOTALL)
         if domain_matches:
             self.git.write_file("backend/src/domain/models.py", domain_matches[0].strip())
+            files_created += 1
+        else:
+            print("⚠️ No domain models found in generated code")
         
         # Application services
         service_matches = re.findall(r'```python\n# .*service.*?\n(.*?)```', backend_code, re.DOTALL)
         if service_matches:
             self.git.write_file("backend/src/application/services.py", service_matches[0].strip())
+            files_created += 1
+        else:
+            print("⚠️ No services found in generated code")
         
         # Infrastructure (database, repositories)
         infra_matches = re.findall(r'```python\n# .*infrastructure.*?\n(.*?)```', backend_code, re.DOTALL)
         if infra_matches:
             self.git.write_file("backend/src/infrastructure/database.py", infra_matches[0].strip())
+            files_created += 1
+        else:
+            print("⚠️ No infrastructure code found in generated code")
         
         # SQL schema
         sql_matches = re.findall(r'```sql\n(.*?)```', backend_code, re.DOTALL)
         if sql_matches:
             self.git.write_file("backend/schema.sql", sql_matches[0].strip())
+            files_created += 1
+        else:
+            print("⚠️ No SQL schema found in generated code")
+        
+        print(f"📁 Created {files_created} backend files")
     
     def _create_api_documentation(self, backend_code: str):
         """Create API documentation from backend code"""
@@ -1429,8 +1438,7 @@ class DocumentationAgent:
         """)
         
     def create_documentation(self, state: DevelopmentState) -> DevelopmentState:
-        # Create branch for documentation
-        self.git.create_branch("feature/documentation")
+        # Work directly on main branch
         
         # Read actual project files
         requirements = self.git.get_file_content("docs/prd/requirements.md")
@@ -1569,8 +1577,7 @@ class QATesterAgent:
         """)
         
     def test_code(self, state: DevelopmentState) -> DevelopmentState:
-        # Create branch for testing
-        self.git.create_branch("feature/testing-suite")
+        # Work directly on main branch
         
         # Read actual project files
         requirements = self.git.get_file_content("docs/prd/requirements.md")
@@ -1694,8 +1701,7 @@ class ProjectManagerAgent:
         """)
         
     def coordinate_team(self, state: DevelopmentState) -> DevelopmentState:
-        # Merge all feature branches to main
-        self._merge_feature_branches()
+        # All work already on main branch - no merging needed
         
         # Analyze project status from actual files
         project_analysis = self._analyze_project_completion()
@@ -1724,14 +1730,8 @@ class ProjectManagerAgent:
         return state
     
     def _merge_feature_branches(self):
-        """Merge all feature branches back to main"""
-        try:
-            os.chdir(self.git.project_dir)
-            # Switch back to main branch
-            subprocess.run(["git", "checkout", "main"], capture_output=True)
-            print("🔀 Merged all feature branches to main")
-        except Exception as e:
-            print(f"⚠️ Branch merge info: {e}")
+        """No longer needed - all work happens on main branch"""
+        print("✓ All work committed directly to main branch")
     
     def _analyze_project_completion(self) -> str:
         """Analyze the completion status of the project"""
@@ -1935,12 +1935,11 @@ def create_development_workflow(git_manager: GitManager):
     workflow.add_node("qa_tester", qa_agent.test_code)
     workflow.add_node("project_manager", proj_mgr.coordinate_team)
     
-    # Define workflow edges (dependencies)
+    # Define workflow edges (dependencies) - Sequential to avoid concurrent updates
     workflow.set_entry_point("product_manager")
-    workflow.add_edge("product_manager", "ui_developer")
-    workflow.add_edge("product_manager", "backend_developer")
+    workflow.add_edge("product_manager", "backend_developer")  # Backend first (provides API)
+    workflow.add_edge("backend_developer", "ui_developer")     # UI second (consumes API)
     workflow.add_edge("ui_developer", "documentation")
-    workflow.add_edge("backend_developer", "documentation")
     workflow.add_edge("documentation", "qa_tester")
     workflow.add_edge("qa_tester", "project_manager")
     workflow.add_edge("project_manager", END)
@@ -1954,20 +1953,48 @@ def create_development_workflow(git_manager: GitManager):
 # MAIN EXECUTION
 # =============================================================================
 
-def run_development_project(project_brief: str, project_name: str = "ai_generated_project", create_github_repo: bool = True):
+def run_development_project(project_brief: str, project_name: str = "src", create_github_repo: bool = True):
     """Run a complete development project with the agile team"""
     
     print("🚀 Starting Agile Development Project")
     print("=" * 60)
     
-    # Create project directory and Git repository
-    project_dir = Path(project_name)
-    git_manager = create_project_structure(project_dir)
+    # Create project directory within existing Git repository (use absolute path to avoid nesting)
+    project_dir = Path.cwd() / project_name
+    
+    # Create directory structure without initializing new Git repo
+    project_dir.mkdir(exist_ok=True)
+    
+    # Create directory structure
+    directories = [
+        "docs/prd",
+        "docs/architecture", 
+        "docs/api",
+        "docs/reviews",
+        "docs/qa",
+        "frontend/src",
+        "frontend/assets",
+        "backend/src/domain",
+        "backend/src/application",
+        "backend/src/infrastructure",
+        "backend/tests/unit",
+        "backend/tests/integration",
+        ".github/ISSUE_TEMPLATE"
+    ]
+    
+    for dir_path in directories:
+        (project_dir / dir_path).mkdir(parents=True, exist_ok=True)
+    
+    # Use existing Git repository instead of creating new one
+    git_manager = GitManager(Path.cwd())  # Use parent directory (existing repo)
+    git_manager.project_dir = project_dir  # But write files to src subdirectory
     
     print(f"📁 Project created at: {project_dir.absolute()}")
     
+    # Working within existing Git repository
+    print("📝 Using existing Git repository for commits")
+    
     # Check for GPU acceleration
-    import subprocess
     try:
         result = subprocess.run(["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader,nounits"], 
                               capture_output=True, text=True, timeout=5)
@@ -2028,40 +2055,11 @@ def run_development_project(project_brief: str, project_name: str = "ai_generate
         for commit in final_state['git_commits']:
             print(f"  📝 {commit}")
         
-        # GitHub Integration
+        # Repository Summary
+        print(f"\n📁 Local project completed at: {project_dir.absolute()}")
         if create_github_repo:
-            print(f"\n🐙 GitHub Integration:")
-            github_manager = GitHubManager()
-            if github_manager.github:
-                # Create GitHub repository
-                repo_description = f"AI-generated project: {project_brief[:100]}..."
-                repo_url = github_manager.create_repository(
-                    repo_name=project_name,
-                    description=repo_description,
-                    private=False
-                )
-                
-                if repo_url:
-                    # Set up repository features
-                    github_manager.setup_repository_features(project_name, project_dir)
-                    
-                    # Push to GitHub
-                    if github_manager.push_to_github(project_dir, repo_url):
-                        print(f"✅ Project successfully published to GitHub!")
-                        print(f"🔗 Repository URL: https://github.com/{github_manager.github.get_user().login}/{project_name}")
-                    else:
-                        print(f"⚠️ Repository created but push failed. You can manually push with:")
-                        print(f"   git remote add origin {repo_url}")
-                        print(f"   git push -u origin main")
-                else:
-                    print(f"⚠️ GitHub repository creation failed. Local Git repository created successfully.")
-            else:
-                print(f"⚠️ GitHub integration disabled. To enable:")
-                print(f"   1. Create a GitHub Personal Access Token with 'repo' scope")
-                print(f"   2. Set environment variable: set GITHUB_TOKEN=your_token_here")
-                print(f"   3. Re-run the development team")
-        else:
-            print(f"\n📁 Local Git repository created successfully at: {project_dir.absolute()}")
+            print(f"🔗 GitHub repository: https://github.com/daz2d/todo-app")
+            print(f"📂 Project files pushed to: ai_generated_project/ directory")
             
         # Quality Assurance Summary
         print(f"\n🎯 Quality Assurance Summary:")

@@ -18,7 +18,7 @@ This project implements an AI-powered agile development team that can help manag
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/todo-app.git
+   git clone https://github.com/daz2d/todo-app.git
    cd todo-app
    ```
 
