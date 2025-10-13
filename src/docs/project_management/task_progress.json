@@ -1,7 +1,29 @@
 {
   "total_tasks": 7,
-  "completed_tasks": 0,
-  "current_task": null,
+  "completed_tasks": 1,
+  "current_task": {
+    "id": 1,
+    "title": "Create User model with validation",
+    "description": " ## Technical Implementation\n\n### File Structure\n- Create/modify: `src/models/user.ts` for defining the User model and its validation rules.\n- Dependencies: Import necessary packages from TypeScript, Express.js, and PostgreSQL (if using an ORM like Sequelize or TypeORM).\n\n### Implementation Details\n- Use Express.js to create API endpoints for handling user registration and authentication.\n- Follow the REST architecture style for designing API endpoints.\n- Define a User class with properties for username, email, password, role, title, status, and assignedUserID.\n- Implement validation rules using TypeScript interfaces and Express.js middleware functions such as `express-validator`.\n  - Ensure the username is unique across all users by adding a custom validation function that checks the database for existing usernames.\n  - Validate email format using built-in Express.js validators or third-party libraries like `email-validator`.\n  - Implement password complexity and length requirements using regular expressions or external libraries like `bcrypt` for hashing and salting passwords.\n  - Ensure the role is either 'user' or 'admin'.\n  - Validate that the title is not empty.\n  - Restrict the status to 'incomplete' or 'completed'.\n  - Verify that the assigned user exists in the database by querying the database before creating a new user.\n\n### API Specification (if applicable)\n```json\nPOST /api/users\n{\n  \"username\": \"<string>\",\n  \"email\": \"<valid email>\",\n  \"password\": \"<hashed password>\",\n  \"role\": \"<'user' | 'admin'>\",\n  \"title\": \"<non-empty string>\",\n  \"status\": \"<'incomplete' | 'completed'>\",\n  \"assignedUserID\": <existing user ID>\n}\n```\n\n### Database Changes (if applicable)\nIf using an ORM like Sequelize or TypeORM, create a User model with the specified properties and validation rules. Define the relationships between the User and other models if necessary.\n\n```sql\nCREATE TABLE users (\n  id SERIAL PRIMARY KEY,\n  username VARCHAR(255) NOT NULL UNIQUE,\n  email VARCHAR(255) NOT NULL UNIQUE,\n  password_hash TEXT NOT NULL,\n  role VARCHAR(10) CHECK(role IN ('user', 'admin')),\n  title TEXT NOT NULL,\n  status VARCHAR(15) CHECK(status IN ('incomplete', 'completed')),\n  assigned_user_id INT REFERENCES users(id)\n);\n```\n\n### Testing Requirements\n- Write unit tests for the User model and validation functions using a testing framework like Jest or Mocha.\n- Perform integration tests to ensure that user registration works correctly with the API endpoints, database, and authentication methods.\n\n### Acceptance Criteria (Enhanced)\n- A developer should be able to create a User model with the specified properties and validation rules using TypeScript, Express.js, and PostgreSQL (or an ORM).\n- The user registration endpoint should accept the provided JSON payload, validate it according to the defined rules, and store the new user in the database if valid.\n- If any validation errors occur, the API should return a meaningful error message to the client.\n- The user registration process should work seamlessly with authentication methods like JWT for secure user sessions.",
+    "labels": [
+      "database",
+      "Task Management Context"
+    ],
+    "priority": "Medium Priority",
+    "story_points": 2,
+    "acceptance_criteria": [
+      "Username is unique across all users",
+      "Email is valid and unique across all users",
+      "Password meets minimum length and complexity requirements",
+      "Role is either 'user' or 'admin'",
+      "Title is not empty",
+      "Status can only be 'incomplete' or 'completed'",
+      "Assigned user exists in the database"
+    ],
+    "assignee": "Backend Developer",
+    "status": "completed",
+    "technical_enhanced": true
+  },
   "task_breakdown": {
     "backend": 0,
     "frontend": 1,
