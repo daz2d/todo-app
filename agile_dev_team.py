@@ -61,10 +61,27 @@ def load_env_file():
     return False
 
 # State definition for the development workflow
+class GitHubIssue(TypedDict):
+    """Represents a GitHub issue/task"""
+    id: int
+    title: str
+    description: str
+    labels: List[str]
+    priority: str
+    story_points: int
+    acceptance_criteria: List[str]
+    assignee: Optional[str]
+    status: str  # 'backlog', 'in_progress', 'completed', 'blocked'
+
 class DevelopmentState(TypedDict):
     project_brief: str
     project_dir: str
     requirements: str
+    architecture: Optional[str]
+    tasks: List[GitHubIssue]
+    current_task: Optional[GitHubIssue]
+    completed_tasks: List[GitHubIssue]
+    available_agents: List[str]
     ui_code: str
     backend_code: str
     documentation: str
@@ -426,6 +443,134 @@ def create_project_structure(project_dir: Path) -> GitManager:
     return GitManager(project_dir)
 
 # =============================================================================
+# TASK MANAGEMENT SYSTEM
+# =============================================================================
+
+class TaskManager:
+    """Manages task assignment and tracking for the development team"""
+    
+    def __init__(self, git_manager: GitManager):
+        self.git = git_manager
+    
+    def parse_github_issues(self, issues_md: str) -> List[GitHubIssue]:
+        """Parse GitHub issues from markdown format into structured tasks"""
+        tasks = []
+        current_task = None
+        task_id = 1
+        
+        lines = issues_md.split('\n')
+        
+        for line in lines:
+            line = line.strip()
+            
+            # New issue detection
+            if line.startswith('Issue:') or (line.startswith('1.') and 'Issue:' in line):
+                if current_task:
+                    tasks.append(current_task)
+                
+                # Extract title
+                title = line.split('Issue:')[-1].strip()
+                if '(' in title and ')' in title:
+                    priority = title.split('(')[-1].split(')')[0].strip()
+                    title = title.split('(')[0].strip()
+                else:
+                    priority = 'Medium Priority'
+                
+                current_task = GitHubIssue(
+                    id=task_id,
+                    title=title,
+                    description="",
+                    labels=[],
+                    priority=priority,
+                    story_points=0,
+                    acceptance_criteria=[],
+                    assignee=None,
+                    status='backlog'
+                )
+                task_id += 1
+            
+            elif current_task and line.startswith('**Labels:**'):
+                labels_text = line.replace('**Labels:**', '').strip()
+                current_task['labels'] = [label.strip() for label in labels_text.split(',')]
+            
+            elif current_task and line.startswith('**Estimate:**'):
+                estimate_text = line.replace('**Estimate:**', '').strip()
+                try:
+                    points = int(estimate_text.split()[0])
+                    # Enforce maximum 3 story points per task
+                    if points > 3:
+                        print(f"⚠️ Task '{current_task['title']}' has {points} points - capping at 3 points max")
+                        points = 3
+                    current_task['story_points'] = points
+                except:
+                    current_task['story_points'] = 3
+            
+            elif current_task and line.startswith('**Description:**'):
+                current_task['description'] = line.replace('**Description:**', '').strip()
+            
+            elif current_task and line.startswith('- [ ]'):
+                criteria = line.replace('- [ ]', '').strip()
+                current_task['acceptance_criteria'].append(criteria)
+        
+        if current_task:
+            tasks.append(current_task)
+        
+        return tasks
+    
+    def get_available_tasks_for_agent(self, agent_type: str, tasks: List[GitHubIssue]) -> List[GitHubIssue]:
+        """Get tasks that are available for a specific agent type"""
+        agent_labels = {
+            'backend': ['backend', 'api', 'database'],
+            'frontend': ['frontend', 'ui', 'ux'],
+            'documentation': ['documentation', 'docs'],
+            'testing': ['testing', 'qa']
+        }
+        
+        relevant_labels = agent_labels.get(agent_type, [])
+        available_tasks = []
+        
+        for task in tasks:
+            if task['status'] == 'backlog':
+                # Check if task is relevant for this agent
+                task_labels = [label.lower() for label in task['labels']]
+                if any(label in task_labels for label in relevant_labels):
+                    available_tasks.append(task)
+        
+        # Sort by priority and story points
+        priority_order = {'High Priority': 1, 'Medium Priority': 2, 'Low Priority': 3}
+        available_tasks.sort(key=lambda x: (priority_order.get(x['priority'], 2), x['story_points']))
+        
+        return available_tasks
+    
+    def assign_task(self, task: GitHubIssue, agent_name: str) -> GitHubIssue:
+        """Assign a task to an agent"""
+        task['assignee'] = agent_name
+        task['status'] = 'in_progress'
+        return task
+    
+    def complete_task(self, task: GitHubIssue) -> GitHubIssue:
+        """Mark a task as completed"""
+        task['status'] = 'completed'
+        return task
+    
+    def save_task_progress(self, state: DevelopmentState):
+        """Save current task progress to file"""
+        progress_data = {
+            'total_tasks': len(state.get('tasks', [])),
+            'completed_tasks': len(state.get('completed_tasks', [])),
+            'current_task': state.get('current_task'),
+            'task_breakdown': {
+                'backend': len([t for t in state.get('tasks', []) if 'backend' in [l.lower() for l in t['labels']]]),
+                'frontend': len([t for t in state.get('tasks', []) if 'frontend' in [l.lower() for l in t['labels']]]),
+                'documentation': len([t for t in state.get('tasks', []) if 'documentation' in [l.lower() for l in t['labels']]]),
+                'testing': len([t for t in state.get('tasks', []) if 'testing' in [l.lower() for l in t['labels']]])
+            }
+        }
+        
+        import json
+        self.git.write_file("docs/project_management/task_progress.json", json.dumps(progress_data, indent=2))
+
+# =============================================================================
 # ARCHITECTURE AGENT
 # =============================================================================
 
@@ -546,6 +691,118 @@ class ArchitectAgent:
         # Store in state for other agents
         state["architecture"] = architecture
         
+        return state
+    
+    def enhance_tasks_with_technical_details(self, state: DevelopmentState) -> DevelopmentState:
+        """Review and enhance tasks with technical implementation details"""
+        tasks = state.get('tasks', [])
+        architecture = state.get('architecture', '') or self.git.get_file_content("docs/architecture/tech_stack.md")
+        requirements = self.git.get_file_content("docs/prd/requirements.md")
+        
+        if not tasks:
+            print("🏗️ Architect: No tasks to enhance")
+            return state
+        
+        print(f"🏗️ Architect: Enhancing {len(tasks)} tasks with technical details...")
+        
+        enhanced_tasks = []
+        
+        for task in tasks:
+            print(f"   • Enhancing Task #{task['id']}: {task['title']}")
+            
+            enhancement_prompt = ChatPromptTemplate.from_template("""
+            You are a Senior Software Architect reviewing a development task for technical completeness.
+            
+            ORIGINAL TASK:
+            Title: {task_title}
+            Description: {task_description}
+            Labels: {task_labels}
+            Acceptance Criteria: {acceptance_criteria}
+            
+            PROJECT CONTEXT:
+            Architecture: {architecture}
+            Requirements: {requirements}
+            
+            Your job is to enhance this task with precise technical implementation details so a developer can implement it without any ambiguity.
+            
+            Add technical specifications including:
+            1. **Exact file paths** where code should be written
+            2. **Specific technology stack** components to use (from architecture)
+            3. **API signatures** and data structures
+            4. **Database schema** details if applicable
+            5. **Import statements** and dependencies needed
+            6. **Error handling** requirements
+            7. **Testing requirements** specific to this task
+            8. **Integration points** with other components
+            
+            Enhanced Description Format:
+            ## Technical Implementation
+            
+            ### File Structure
+            - Create/modify: `exact/file/path.py`
+            - Dependencies: list specific imports
+            
+            ### Implementation Details
+            - Use {specific_framework} for [specific purpose]
+            - Follow {architectural_pattern} pattern
+            - Implement {specific_interfaces_or_classes}
+            
+            ### API Specification (if applicable)
+            ```
+            Exact endpoint definitions, request/response formats
+            ```
+            
+            ### Database Changes (if applicable)
+            ```sql
+            Exact SQL or schema definitions
+            ```
+            
+            ### Testing Requirements
+            - Unit tests for [specific functions]
+            - Integration tests for [specific flows]
+            
+            ### Acceptance Criteria (Enhanced)
+            Make the original acceptance criteria more specific and technical.
+            
+            Provide a completely unambiguous technical specification.
+            """)
+            
+            chain = enhancement_prompt | self.llm | StrOutputParser()
+            enhanced_description = chain.invoke({
+                "task_title": task['title'],
+                "task_description": task['description'],
+                "task_labels": ', '.join(task['labels']),
+                "acceptance_criteria": '\n'.join([f"- {criteria}" for criteria in task['acceptance_criteria']]),
+                "architecture": architecture[:1500],  # Truncate for context
+                "requirements": requirements[:1000]
+            })
+            
+            # Create enhanced task
+            enhanced_task = task.copy()
+            enhanced_task['description'] = enhanced_description
+            enhanced_task['technical_enhanced'] = True
+            
+            enhanced_tasks.append(enhanced_task)
+        
+        # Update state with enhanced tasks
+        state['tasks'] = enhanced_tasks
+        
+        # Save enhanced tasks to file
+        enhanced_tasks_content = "# Enhanced Technical Tasks\n\n"
+        for task in enhanced_tasks:
+            enhanced_tasks_content += f"## Task #{task['id']}: {task['title']}\n"
+            enhanced_tasks_content += f"**Labels:** {', '.join(task['labels'])}\n"
+            enhanced_tasks_content += f"**Story Points:** {task['story_points']}\n"
+            enhanced_tasks_content += f"**Priority:** {task['priority']}\n\n"
+            enhanced_tasks_content += task['description'] + "\n\n"
+            enhanced_tasks_content += "---\n\n"
+        
+        self.git.write_file("docs/architecture/enhanced_tasks.md", enhanced_tasks_content)
+        
+        # Commit enhanced tasks
+        self.git.commit_changes("docs: Add technical details to development tasks", "Architect")
+        
+        print(f"✅ Architect: Enhanced {len(enhanced_tasks)} tasks with technical specifications")
         return state
     
     def _create_technology_decision_records(self, architecture: str):
@@ -1019,6 +1276,38 @@ class ProductManagerAgent:
         # Write self-review to git
         self.git.write_file("docs/reviews/product_manager_self_review.md", self_review["review_text"])
         
+        # Parse GitHub issues into structured tasks
+        task_manager = TaskManager(self.git)
+        issues_content = self.git.get_file_content("docs/prd/github_issues.md")
+        tasks = task_manager.parse_github_issues(issues_content)
+        
+        # Initialize task tracking in state
+        state["tasks"] = tasks
+        state["completed_tasks"] = []
+        state["current_task"] = None
+        state["available_agents"] = ["backend", "frontend", "documentation", "testing"]
+        
+        # Save task progress
+        task_manager.save_task_progress(state)
+        
+        # Validate task sizes
+        oversized_tasks = [t for t in tasks if t['story_points'] > 3]
+        if oversized_tasks:
+            print(f"⚠️ Product Manager: Found {len(oversized_tasks)} oversized tasks (>3 points)")
+        
+        # Show task statistics
+        point_distribution = {}
+        for task in tasks:
+            points = task['story_points']
+            point_distribution[points] = point_distribution.get(points, 0) + 1
+        
+        print(f"📋 Product Manager: Created {len(tasks)} tasks")
+        print(f"   📊 Task distribution: {dict(sorted(point_distribution.items()))}")
+        
+        # Show first few tasks as examples
+        for task in tasks[:3]:  # Show first 3 tasks
+            print(f"   • Task #{task['id']}: {task['title']} ({task['priority']}, {task['story_points']} pts)")
+        
         # Commit the requirements
         commit_msg = "feat: Add product requirements and roadmap"
         if state["agent_reviews"]["Product Manager"]["revisions"]:
@@ -1037,29 +1326,38 @@ class ProductManagerAgent:
     def _create_issues_from_requirements(self, requirements: str) -> str:
         """Extract actionable tasks from requirements and format as GitHub issues"""
         issue_prompt = ChatPromptTemplate.from_template("""
-        Based on these requirements, create GitHub issues for development tasks:
+        Based on these requirements, create small, focused GitHub issues for development tasks:
         
         {requirements}
         
-        Format as GitHub Issues with:
-        - Clear, actionable titles
-        - Detailed descriptions
-        - Acceptance criteria
-        - Labels (feature, bug, enhancement, documentation)
-        - Estimates (story points)
+        CRITICAL CONSTRAINTS:
+        - Each task must be 2-3 story points maximum (no larger tasks!)
+        - Break down complex features into multiple small tasks
+        - Each task should be completable in 1-2 hours
+        - Tasks should be very specific and actionable
+        - Avoid ambiguous or overly broad tasks
         
-        Create separate issues for:
-        1. Frontend development tasks
-        2. Backend API development
-        3. Database schema
-        4. Documentation tasks
-        5. Testing tasks
+        Create granular, focused issues such as:
+        ✅ Good: "Create User model with validation" (2 pts)
+        ✅ Good: "Add POST /api/users endpoint" (2 pts) 
+        ✅ Good: "Implement login form component" (3 pts)
+        ❌ Bad: "User management system" (8 pts - too big!)
+        ❌ Bad: "Complete frontend" (15 pts - way too big!)
+        
+        Break down into categories:
+        1. **Database/Models** - Individual model classes, schemas, migrations
+        2. **API Endpoints** - Single endpoints with specific HTTP methods
+        3. **Frontend Components** - Individual UI components or forms
+        4. **Authentication** - Specific auth features (login, logout, validation)
+        5. **Business Logic** - Individual service methods or utilities
+        6. **Testing** - Test suites for specific components
+        7. **Documentation** - Specific documentation sections
         
         Format each issue as:
-        ## Issue: [Title]
-        **Labels:** feature, frontend
-        **Estimate:** 3 story points
-        **Description:** [Detailed description]
+        ## Issue: [Very Specific Title]
+        **Labels:** feature, [domain]
+        **Estimate:** [1-3] story points
+        **Description:** [Detailed, specific description]
         **Acceptance Criteria:**
         - [ ] Criterion 1
         - [ ] Criterion 2
@@ -1532,44 +1830,92 @@ class BackendCoderAgent:
         """)
         
     def create_backend(self, state: DevelopmentState) -> DevelopmentState:
-        # Check if backend files already exist
-        main_py_path = self.git.project_dir / "backend" / "main.py"
-        if main_py_path.exists():
-            print("🔧 Backend Developer: Backend files already exist, skipping generation...")
+        """Work on backend tasks from the backlog"""
+        task_manager = TaskManager(self.git)
+        
+        # Get available backend tasks
+        available_tasks = task_manager.get_available_tasks_for_agent('backend', state.get('tasks', []))
+        
+        if not available_tasks:
+            print("🔧 Backend Developer: No backend tasks available in backlog")
             return state
         
-        # Work directly on main branch
-        print("🔧 Backend Developer: Generating backend files...")
+        # Pick up the highest priority task
+        current_task = available_tasks[0]
+        current_task = task_manager.assign_task(current_task, "Backend Developer")
+        state["current_task"] = current_task
+        
+        print(f"🔧 Backend Developer: Picking up task #{current_task['id']}: {current_task['title']}")
+        print(f"   Priority: {current_task['priority']}, Story Points: {current_task['story_points']}")
         
         # Read project context
         requirements = self.git.get_file_content("docs/prd/requirements.md")
         architecture = state.get("architecture", "") or self.git.get_file_content("docs/architecture/tech_stack.md")
-        frontend_summary = self._get_frontend_summary()
-        existing_backend = self._get_existing_backend_structure()
         
-        # Generate backend code
-        chain = self.prompt | self.llm | StrOutputParser()
-        backend_code = chain.invoke({
+        # Create task-specific prompt
+        task_chain = ChatPromptTemplate.from_template("""
+        You are a Backend Developer working on a specific task.
+        
+        CURRENT TASK: {task_title}
+        TASK DESCRIPTION: {task_description}
+        ACCEPTANCE CRITERIA:
+        {acceptance_criteria}
+        
+        Project Requirements: {requirements}
+        Technical Architecture: {architecture}
+        
+        CRITICAL: You MUST follow the technology stack specified in the architecture document.
+        
+        Focus ONLY on this specific task. Implement the minimal code needed to satisfy the acceptance criteria.
+        Do not implement features outside this task scope.
+        
+        Generate code that:
+        1. Addresses the specific task requirements
+        2. Meets all acceptance criteria
+        3. Follows the architecture specification
+        4. Is production-ready and well-tested
+        5. Includes proper error handling
+        
+        Provide implementation details for this specific task only.
+        """) | self.llm | StrOutputParser()
+        
+        # Generate code for this specific task
+        task_implementation = task_chain.invoke({
+            "task_title": current_task['title'],
+            "task_description": current_task['description'],
+            "acceptance_criteria": '\n'.join([f"- {criteria}" for criteria in current_task['acceptance_criteria']]),
             "requirements": requirements,
-            "architecture": architecture,
-            "frontend_summary": frontend_summary,
-            "existing_backend": existing_backend
+            "architecture": architecture
         })
         
-        # Write backend files following Hexagonal Architecture
-        self._write_backend_files(backend_code)
+        # Write backend files for this task
+        self._write_backend_files_for_task(task_implementation, current_task)
         
-        # Create API documentation
-        self._create_api_documentation(backend_code)
+        # Mark task as completed
+        task_manager.complete_task(current_task)
+        state["completed_tasks"] = state.get("completed_tasks", []) + [current_task]
         
-        # Create requirements.txt
-        self._create_requirements_txt()
+        # Update task list
+        updated_tasks = []
+        for task in state.get("tasks", []):
+            if task['id'] != current_task['id']:
+                updated_tasks.append(task)
+            else:
+                updated_tasks.append(current_task)
+        state["tasks"] = updated_tasks
         
-        # Commit backend code
-        self.git.commit_changes("feat: Implement backend API with Hexagonal Architecture", "Backend Developer")
+        # Commit this specific task
+        commit_msg = f"feat: Implement {current_task['title']} (#{current_task['id']})"
+        self.git.commit_changes(commit_msg, "Backend Developer")
         
-        state["backend_code"] = backend_code
-        state["feedback"].append("✓ Backend Developer: Server code and APIs created and committed")
+        # Save progress
+        task_manager.save_task_progress(state)
+        
+        print(f"✅ Backend Developer: Completed task #{current_task['id']}")
+        state["feedback"].append(f"✓ Backend Developer: Task #{current_task['id']} completed and committed")
+        
+        # Clear current task
+        state["current_task"] = None
         state["git_commits"].append("Backend implementation committed")
         print("⚙️ Backend Developer: Server-side implementation completed and committed")
         return state
@@ -1685,6 +2031,75 @@ class BackendCoderAgent:
         
         print(f"📁 Created {files_created} backend files with CodeLlama")
     
+    def _write_backend_files_for_task(self, task_implementation: str, task: GitHubIssue):
+        """Write backend files for a specific task"""
+        print(f"🔍 Implementing backend task: {task['title']}")
+        
+        # Determine which files to generate based on task type and labels
+        task_labels = [label.lower() for label in task['labels']]
+        files_created = 0
+        
+        # Create focused prompts for specific files based on task
+        chain = ChatPromptTemplate.from_template(
+            "Generate ONLY the {file_type} code for this specific task: {task_title}. "
+            "Task implementation: {task_implementation}. "
+            "Return only clean code with no markdown formatting, no explanations."
+        ) | self.llm | StrOutputParser()
+        
+        # Generate specific files based on task needs
+        if 'api' in task_labels or 'endpoint' in task['title'].lower():
+            try:
+                api_code = chain.invoke({
+                    "file_type": "FastAPI endpoints and routes",
+                    "task_title": task['title'],
+                    "task_implementation": task_implementation[:1000]
+                })
+                if api_code and len(api_code.strip()) > 30:
+                    existing_main = ""
+                    try:
+                        existing_main = self.git.get_file_content("backend/main.py")
+                    except:
+                        pass
+                    
+                    # Append to existing main.py or create new
+                    if existing_main:
+                        updated_main = existing_main + "\n\n# " + task['title'] + "\n" + api_code.strip()
+                    else:
+                        updated_main = api_code.strip()
+                    
+                    self.git.write_file("backend/main.py", updated_main)
+                    files_created += 1
+            except Exception as e:
+                print(f"⚠️ Error generating API code: {e}")
+        
+        if 'database' in task_labels or 'schema' in task['title'].lower():
+            try:
+                db_code = chain.invoke({
+                    "file_type": "database models and repository",
+                    "task_title": task['title'],
+                    "task_implementation": task_implementation[:1000]
+                })
+                if db_code and len(db_code.strip()) > 30:
+                    self.git.write_file(f"backend/src/infrastructure/task_{task['id']}_db.py", db_code.strip())
+                    files_created += 1
+            except Exception as e:
+                print(f"⚠️ Error generating database code: {e}")
+        
+        if 'auth' in task['title'].lower() or 'user' in task['title'].lower():
+            try:
+                auth_code = chain.invoke({
+                    "file_type": "authentication and user management",
+                    "task_title": task['title'],
+                    "task_implementation": task_implementation[:1000]
+                })
+                if auth_code and len(auth_code.strip()) > 30:
+                    self.git.write_file(f"backend/src/application/auth_service.py", auth_code.strip())
+                    files_created += 1
+            except Exception as e:
+                print(f"⚠️ Error generating auth code: {e}")
+        
+        print(f"📁 Created {files_created} files for task #{task['id']}")
+
     def _create_api_documentation(self, backend_code: str):
         """Create API documentation from backend code"""
         api_doc_prompt = ChatPromptTemplate.from_template("""
@@ -2243,8 +2658,52 @@ python-multipart==0.0.6
 # WORKFLOW ORCHESTRATION
 # =============================================================================
 
+def task_coordinator(state: DevelopmentState) -> str:
+    """Coordinates task assignment - decides which agent should work next"""
+    tasks = state.get('tasks', [])
+    
+    # Check if all tasks are completed
+    remaining_tasks = [t for t in tasks if t['status'] != 'completed']
+    if not remaining_tasks:
+        print("🎉 All tasks completed! Moving to final documentation and QA.")
+        return "project_manager"
+    
+    # Count remaining tasks by type
+    task_counts = {'backend': 0, 'frontend': 0, 'documentation': 0, 'testing': 0}
+    for task in remaining_tasks:
+        task_labels = [label.lower() for label in task['labels']]
+        if any(label in ['backend', 'api', 'database'] for label in task_labels):
+            task_counts['backend'] += 1
+        elif any(label in ['frontend', 'ui', 'ux'] for label in task_labels):
+            task_counts['frontend'] += 1
+        elif any(label in ['documentation', 'docs'] for label in task_labels):
+            task_counts['documentation'] += 1
+        elif any(label in ['testing', 'qa'] for label in task_labels):
+            task_counts['testing'] += 1
+    
+    print(f"📊 Task Status - Backend: {task_counts['backend']}, Frontend: {task_counts['frontend']}, Docs: {task_counts['documentation']}, Testing: {task_counts['testing']}")
+    
+    # Prioritize backend first (API should be built before frontend)
+    if task_counts['backend'] > 0:
+        return "backend_developer"
+    
+    # Then frontend tasks  
+    if task_counts['frontend'] > 0:
+        return "ui_developer"
+    
+    # Then documentation tasks
+    if task_counts['documentation'] > 0:
+        return "documentation"
+    
+    # Finally testing tasks
+    if task_counts['testing'] > 0:
+        return "qa_tester"
+    
+    # If no specific tasks, go to project manager
+    return "project_manager"
+
 def create_development_workflow(git_manager: GitManager):
-    """Creates the LangGraph workflow for the development team"""
+    """Creates the task-driven LangGraph workflow for the development team"""
     
     # Initialize QA manager first (needed by architect)
     qa_manager = QualityAssuranceManager(git_manager)
@@ -2264,20 +2723,38 @@ def create_development_workflow(git_manager: GitManager):
     # Add nodes (agents)
     workflow.add_node("product_manager", pm_agent.analyze_project)
     workflow.add_node("architect", architect_agent.design_architecture)
+    workflow.add_node("task_enhancement", architect_agent.enhance_tasks_with_technical_details)
+    workflow.add_node("task_coordinator", task_coordinator)
     workflow.add_node("ui_developer", ui_agent.create_ui)
     workflow.add_node("backend_developer", backend_agent.create_backend)
     workflow.add_node("documentation", doc_agent.create_documentation)
     workflow.add_node("qa_tester", qa_agent.test_code)
     workflow.add_node("project_manager", proj_mgr.coordinate_team)
     
-    # Define workflow edges (dependencies) - Sequential to avoid concurrent updates
+    # Define workflow edges for task-driven development
     workflow.set_entry_point("product_manager")
     workflow.add_edge("product_manager", "architect")          # Architect defines tech stack after requirements
-    workflow.add_edge("architect", "backend_developer")        # Backend follows architecture decisions
-    workflow.add_edge("backend_developer", "ui_developer")     # UI second (consumes API and follows arch)
-    workflow.add_edge("ui_developer", "documentation")
-    workflow.add_edge("documentation", "qa_tester")
-    workflow.add_edge("qa_tester", "project_manager")
+    workflow.add_edge("architect", "task_enhancement")         # Architect enhances tasks with technical details
+    workflow.add_edge("task_enhancement", "task_coordinator")  # Start task coordination after enhancement
+    
+    # Task coordinator decides which agent works next
+    workflow.add_conditional_edges(
+        "task_coordinator",
+        task_coordinator,
+        {
+            "backend_developer": "backend_developer",
+            "ui_developer": "ui_developer", 
+            "documentation": "documentation",
+            "qa_tester": "qa_tester",
+            "project_manager": "project_manager"
+        }
+    )
+    
+    # After each agent completes a task, go back to coordinator (except project manager)
+    workflow.add_edge("backend_developer", "task_coordinator")
+    workflow.add_edge("ui_developer", "task_coordinator")  
+    workflow.add_edge("documentation", "task_coordinator")
+    workflow.add_edge("qa_tester", "task_coordinator")
     workflow.add_edge("project_manager", END)
     
     # Add memory for state persistence

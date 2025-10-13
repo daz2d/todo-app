@@ -1,62 +1,60 @@
  ## Requirements Document
 
 ### Project Overview
-Create a simple Todo List web application that allows users to add, mark as done, and delete tasks. The frontend will be built using HTML/CSS/JavaScript, with basic data storage provided. The goal is to keep the design clean and user-friendly.
+This project aims to create a simple Todo List web application. The application will allow users to add new tasks, mark tasks as done, delete tasks, and provide basic data storage. The frontend will be built using HTML, CSS, and JavaScript.
 
 ### User Stories
-1. As a user, I want to be able to create new tasks so that I can manage my daily activities.
-2. As a user, I want to mark tasks as done so that I can track completed tasks.
-3. As a user, I want to delete tasks if they are no longer relevant or necessary.
-4. As an administrator, I want to have the ability to view all tasks across all users for monitoring and management purposes.
+1. As a user, I want to be able to create a new task so that I can manage my daily activities.
+2. As a user, I want to be able to mark a task as done so that I can track the tasks I have completed.
+3. As a user, I want to be able to delete a task so that I can remove tasks that are no longer relevant.
+4. As an administrator, I want to be able to view all tasks so that I can monitor the overall progress.
+5. As a user, I want to be able to search for specific tasks so that I can quickly find what I am looking for.
 
 ### Functional Requirements
-1. Users should be able to create accounts and log in securely.
-2. Users should be able to view their own tasks list.
-3. Users should be able to add new tasks with a title, description, and due date (optional).
-4. Users should be able to mark tasks as done or undone.
-5. Users should be able to delete their own tasks.
-6. Administrators should have access to all tasks across all users for monitoring and management purposes.
-7. The application should handle errors gracefully and provide appropriate feedback to the user.
-8. The application should be responsive, ensuring it works well on various devices and screen sizes.
-9. The application should be secure, with proper authentication and authorization in place.
-10. The application should be scalable, allowing for future growth and expansion.
+1. The application should have a user-friendly interface that is easy to navigate.
+2. Users should be able to add new tasks with a title and description.
+3. Tasks should be displayed in a list format, with the ability to mark them as done or delete them.
+4. The application should store tasks securely and allow for retrieval when needed.
+5. The application should have search functionality to help users find specific tasks.
+6. The application should handle errors gracefully and provide meaningful error messages.
+7. The application should be responsive, working well on various devices and screen sizes.
 
 ### Acceptance Criteria
-1. Users can create accounts and log in successfully.
-2. Users can view their own tasks list accurately.
-3. Users can add new tasks with the provided fields.
-4. Users can mark tasks as done or undone correctly.
-5. Users can delete their own tasks without affecting other users' tasks.
-6. Administrators can view all tasks across all users.
-7. The application handles errors appropriately, providing clear feedback to the user.
-8. The application is responsive and works well on various devices and screen sizes.
-9. The application is secure with proper authentication and authorization in place.
-10. The application is scalable, demonstrating potential for future growth and expansion.
+1. All user stories are implemented and function as expected.
+2. The application is easy to use and navigate.
+3. Tasks can be added, marked as done, deleted, and searched for effectively.
+4. Data storage is secure and reliable.
+5. Error handling is effective and user-friendly.
+6. The application is responsive and works well on various devices.
 
 ### Priority Features
-1. User Authentication and Authorization (High)
-2. Task Management (High)
-3. Responsive Design (Medium)
-4. Error Handling (Medium)
-5. Scalability (Low - Future Consideration)
-6. Administrator Access (Low - Future Consideration)
+1. User authentication and authorization (High)
+2. Task creation, editing, and deletion (High)
+3. Task listing and filtering (High)
+4. Data storage and retrieval (High)
+5. Search functionality (Medium)
+6. Error handling and responsiveness (Medium)
+7. User interface design and usability (Medium)
 
 ### Domain Model (DDD)
 #### Bounded Contexts:
-1. User Management
-2. Task Management
+1. Task Management - Handles the creation, editing, deletion, and listing of tasks.
+2. Data Storage - Handles the secure storage and retrieval of task data.
+3. User Authentication - Handles user authentication and authorization.
 
-#### Entities:
+#### Domain Entities:
 1. User
-   - Properties: id, username, password, email
 2. Task
-   - Properties: id, title, description, due_date, is_done, user_id (foreign key)
 
 #### Value Objects:
-1. Due Date (representing a date in the format YYYY-MM-DD)
+1. Title (for Task)
+2. Description (for Task)
+3. Status (for Task, representing whether a task is done or not)
 
 #### Aggregates:
-1. User Aggregate (contains User entity and associated Task entities)
+1. User with associated tasks
 
 ### Architecture Guidelines
-The application will follow Hexagonal Architecture principles, separating the application logic from the UI, infrastructure, and external dependencies. This allows for easier testing, maintenance, and potential future integration of new technologies. The domain model will be defined using Domain Driven Design (DDD) principles, with clear bounded contexts, entities, value objects, and aggregates identified. A ubiquitous language will be established to ensure consistent communication within the team and between the team and stakeholders.
+- Apply Domain Driven Design (DDD) to identify core domains and define clear bounded contexts and domain models.
+- Structure requirements to support Hexagonal Architecture, separating the application's business logic from its infrastructure and UI concerns. This will allow for easier testing, maintenance, and potential future changes in the application's architecture.
+- Identify a ubiquitous language for the domain, using consistent terminology throughout the application to improve communication between team members and reduce confusion.
