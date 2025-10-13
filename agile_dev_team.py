@@ -2660,8 +2660,8 @@ python-multipart==0.0.6
 # WORKFLOW ORCHESTRATION
 # =============================================================================
 
-def task_coordinator(state: DevelopmentState) -> str:
-    """Coordinates task assignment - decides which agent should work next"""
+def task_coordinator_routing(state: DevelopmentState) -> str:
+    """Routing function for conditional edges - decides which agent should work next"""
     tasks = state.get('tasks', [])
     
     # Check if all tasks are completed
@@ -2704,6 +2704,11 @@ def task_coordinator(state: DevelopmentState) -> str:
     # If no specific tasks, go to project manager
     return "project_manager"
 
+def task_coordinator(state: DevelopmentState) -> DevelopmentState:
+    """Node function for task coordination - updates state and passes through"""
+    # This function just passes through the state - routing is handled by task_coordinator_routing
+    return state
+
 def create_development_workflow(git_manager: GitManager):
     """Creates the task-driven LangGraph workflow for the development team"""
     
@@ -2742,7 +2747,7 @@ def create_development_workflow(git_manager: GitManager):
     # Task coordinator decides which agent works next
     workflow.add_conditional_edges(
         "task_coordinator",
-        task_coordinator,
+        task_coordinator_routing,
         {
             "backend_developer": "backend_developer",
             "ui_developer": "ui_developer", 
