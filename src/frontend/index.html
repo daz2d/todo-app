@@ -1,0 +1,27 @@
+```
+### JavaScript Logic
+```javascript
+const form = document.querySelector('.todo-form');
+const inputTitle = document.querySelector('input[name="title"]');
+const inputDescription = document.querySelector('textarea[name="description"]');
+const list = document.querySelector('.todo-list');
+
+// Add task to the list
+function addTask(e) {
+  e.preventDefault();
+  const title = inputTitle.value;
+  const description = inputDescription.value;
+  if (title && description) {
+    // Create a new list item and append it to the list
+    const item = document.createElement('li');
+    item.innerHTML = `${title} - ${description}`;
+    list.appendChild(item);
+    // Clear the input fields
+    inputTitle.value = '';
+    inputDescription.value = '';
+  }
+}
+
+// Event listener for form submission
+form.addEventListener('submit', addTask);
+```

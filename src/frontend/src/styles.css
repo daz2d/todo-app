@@ -1,0 +1,98 @@
+```
+Here is the CSS code for the todo app with animations and mobile support:
+```css
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f0f0f0;
+}
+
+.container {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 1rem;
+  border: 1px solid #ccc;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+form.todo-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+input[type="text"], textarea {
+  padding: 0.5rem;
+  border: none;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+input[type="text"] {
+  width: 100%;
+}
+
+textarea {
+  width: 100%;
+  height: 10rem;
+}
+
+button[type="submit"] {
+  background-color: #4CAF50;
+  color: white;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button[type="submit"]:hover {
+  background-color: #45a049;
+}
+
+ul.todo-list {
+  list-style: none;
+  padding: 0;
+  margin: 2rem 0;
+}
+
+li.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem;
+  border-bottom: 1px solid #ccc;
+}
+
+li.todo-item:last-child {
+  border-bottom: none;
+}
+
+input[type="checkbox"] {
+  margin-right: 0.5rem;
+}
+
+span.todo-title {
+  font-weight: bold;
+}
+
+span.todo-description {
+  color: #666;
+}
+
+@media (max-width: 800px) {
+  .container {
+    max-width: none;
+  }
+}
+```
+Note that this code is just a starting point, and you may need to adjust it based on your specific requirements. Additionally, you can use CSS frameworks like Bootstrap or Materialize to make the styling process easier and more efficient.
