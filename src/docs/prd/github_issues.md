@@ -1,104 +1,85 @@
  Based on the provided requirements and constraints, here are some focused GitHub issues for development tasks:
 
 **Database/Models**
-
-1. Issue: Create User model with validation (2 pts)
-   **Labels:** feature, Database
+1. Issue: Create User model with validation
+   **Labels:** database, User Management Context
    **Estimate:** 2 story points
-   **Description:** Implement the User model with required fields and validation rules.
+   **Description:** Define a User model with fields for username, email, password, and role (user or admin). Implement validation rules for each field to ensure data integrity.
    **Acceptance Criteria:**
-   - [ ] The User model is created with necessary fields like id, username, email, and password.
-   - [ ] Validation rules are set for each field to ensure data integrity.
+   - [ ] Username is unique across all users
+   - [ ] Email is valid and unique across all users
+   - [ ] Password meets minimum length and complexity requirements
+   - [ ] Role is either 'user' or 'admin'
 
-2. Issue: Create Task model (2 pts)
-   **Labels:** feature, Database
+2. Issue: Create Task model with validation
+   **Labels:** database, Task Management Context
    **Estimate:** 2 story points
-   - [ ] Implement the Task model with required fields like id, title, description, and status.
-   - [ ] Define relationships between User and Task models if needed.
+   **Description:** Define a Task model with fields for title, description (optional), status, and assigned user ID. Implement validation rules to ensure data consistency.
+   **Acceptance Criteria:**
+   - [ ] Title is not empty
+   - [ ] Status can only be 'incomplete' or 'completed'
+   - [ ] Assigned user exists in the database
 
 **API Endpoints**
-
-1. Issue: Add POST /api/users endpoint (2 pts)
-   **Labels:** feature, API
+1. Issue: Add POST /api/users endpoint
+   **Labels:** API, User Management Context
    **Estimate:** 2 story points
-   **Description:** Implement the API endpoint for creating new users.
+   **Description:** Implement a POST endpoint for creating new users with proper request and response handling.
    **Acceptance Criteria:**
-   - [ ] The POST /api/users endpoint is created and functional.
-   - [ ] User data is validated before being saved to the database.
+   - [ ] Returns a 201 Created status code upon successful creation
+   - [ ] Returns an error message (4xx) if validation fails
 
-2. Issue: Add PUT /api/tasks/:id endpoint (3 pts)
-   **Labels:** feature, API
-   **Estimate:** 3 story points
-   **Description:** Implement the API endpoint for updating task status based on its id.
+2. Issue: Add GET /api/tasks endpoint
+   **Labels:** API, Task Management Context
+   **Estimate:** 2 story points
+   **Description:** Implement a GET endpoint for retrieving all tasks for a specific user based on the provided JWT token.
    **Acceptance Criteria:**
-   - [ ] The PUT /api/tasks/:id endpoint is created and functional.
-   - [ ] Task status is updated correctly when the endpoint is called with a valid task id.
+   - [ ] Returns an array of tasks for the authenticated user
+   - [ ] Returns an error message (4xx) if authentication fails or the user does not exist
 
 **Frontend Components**
-
-1. Issue: Implement add task form component (3 pts)
-   **Labels:** feature, Frontend
+1. Issue: Implement login form component
+   **Labels:** frontend, Authentication
    **Estimate:** 3 story points
-   **Description:** Create a reusable form component for adding new tasks.
+   **Description:** Create a reusable login form that accepts username, email, and password inputs, and handles user authentication using the API endpoints.
    **Acceptance Criteria:**
-   - [ ] The add task form is functional and user-friendly.
-   - [ ] Validation rules are applied to the form inputs to ensure data integrity.
-
-2. Issue: Implement task list component (3 pts)
-   **Labels:** feature, Frontend
-   **Estimate:** 3 story points
-   **Description:** Create a reusable component for displaying and managing tasks in the user's task list.
-   **Acceptance Criteria:**
-   - [ ] The task list component is functional and user-friendly.
-   - [ ] Tasks can be added, marked as done, and deleted from the list.
+   - [ ] User can successfully log in with valid credentials
+   - [ ] User is redirected to the tasks list upon successful login
+   - [ ] Error messages are displayed for invalid credentials or other errors
 
 **Authentication**
-
-1. Issue: Implement login form component (3 pts)
-   **Labels:** feature, Authentication
+1. Issue: Implement user registration
+   **Labels:** Authentication, User Management Context
    **Estimate:** 3 story points
-   **Description:** Create a reusable login form component for user authentication.
+   **Description:** Create a user registration endpoint and form to allow new users to sign up with their email and password.
    **Acceptance Criteria:**
-   - [ ] The login form is functional and secure.
-   - [ ] User credentials are validated against the database before granting access.
+   - [ ] Returns a 201 Created status code upon successful registration
+   - [ ] Sends an activation email to the newly registered user
+   - [ ] User can activate their account by clicking on the provided link in the email
 
 **Business Logic**
-
-1. Issue: Implement task creation service (2 pts)
-   **Labels:** feature, BusinessLogic
+1. Issue: Implement task creation logic
+   **Labels:** Business Logic, Task Management Context
    **Estimate:** 2 story points
-   **Description:** Create a service for handling the creation of new tasks and saving them to the database.
+   **Description:** Create a service method to handle the creation of new tasks using the API endpoint and store them in the database.
    **Acceptance Criteria:**
-   - [ ] The task creation service is functional and saves tasks correctly to the database.
-
-2. Issue: Implement task status update service (3 pts)
-   **Labels:** feature, BusinessLogic
-   **Estimate:** 3 story points
-   **Description:** Create a service for handling the updating of task status based on user interaction with the UI.
-   **Acceptance Criteria:**
-   - [ ] The task status update service is functional and updates tasks correctly in the database.
+   - [ ] A new task is created in the database upon successful submission through the API
+   - [ ] The newly created task is returned with a 201 Created status code
 
 **Testing**
-
-1. Issue: Write unit tests for User model (2 pts)
-   **Labels:** testing, Database
-   **Estimate:** 2 story points
-   **Description:** Write unit tests to ensure the correct functionality of the User model.
+1. Issue: Write tests for User model and API endpoint
+   **Labels:** Testing, User Management Context
+   **Estimate:** 3 story points
+   **Description:** Write unit tests to ensure the User model and associated API endpoint function correctly.
    **Acceptance Criteria:**
-   - [ ] All methods and properties of the User model are tested with appropriate test cases.
-
-2. Issue: Write unit tests for Task model (2 pts)
-   **Labels:** testing, Database
-   **Estimate:** 2 story points
-   **Description:** Write unit tests to ensure the correct functionality of the Task model.
-   **Acceptance Criteria:**
-   - [ ] All methods and properties of the Task model are tested with appropriate test cases.
+   - [ ] All validation rules are properly enforced
+   - [ ] The API endpoint returns the correct response for valid and invalid requests
 
 **Documentation**
-
-1. Issue: Document API endpoints (2 pts)
-   **Labels:** documentation, API
-   **Estimate:** 2 story points
-   **Description:** Write clear and concise documentation for each API endpoint.
+1. Issue: Document user registration process
+   **Labels:** Documentation, User Management Context
+   **Estimate:** 1 story point
+   **Description:** Write clear instructions on how users can register an account on the Todo List web application.
    **Acceptance Criteria:**
-   - [ ] Each API endpoint has a detailed description, input/output examples, and error handling information.
+   - [ ] Instructions are easy to understand and follow
+   - [ ] All necessary steps are included, including activation of the account via email

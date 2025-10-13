@@ -1,42 +1,40 @@
  # Project Roadmap
 
 ## Phase 1: Foundation (Week 1-2)
-### Goal: Set up the project structure and establish a solid foundation for development.
+### Goal: Set up the project environment and establish core structures.
 
-#### Tasks:
-1. Initialize project with necessary tools and libraries (HTML, CSS, JavaScript). [Estimated time: 1 day]
-2. Define the project's architecture following Hexagonal Architecture principles. [Estimated time: 2 days]
-3. Establish a ubiquitous language for the domain. [Estimated time: 1 day]
-4. Create basic UI layout and navigation structure. [Estimated time: 2 days]
-5. Set up data storage (e.g., Local Storage or IndexedDB). [Estimated time: 3 days]
-6. Implement error handling and validation mechanisms. [Estimated time: 2 days]
-7. Ensure basic responsiveness for various devices and screen sizes. [Estimated time: 1 day]
-8. Conduct initial code reviews and refactor as necessary. [Estimated time: 1 day]
+- [ ] Set up project repository and version control system (Git/GitHub)
+- [ ] Define project architecture and structure based on DDD principles
+- [ ] Create basic HTML, CSS, and JavaScript files for frontend development
+- [ ] Implement Hexagonal Architecture to ensure loose coupling and testability
+- [ ] Set up server-side data storage (e.g., MongoDB) and connection using Node.js or Express.js
+- [ ] Establish a basic REST API for communication between frontend and backend
 
 ## Phase 2: Core Features (Week 3-4)
-### Goal: Implement the priority features required for a functional Todo List application.
+### Goal: Develop the core features of the Todo List application.
 
-#### Tasks:
-1. Implement user authentication and authorization (optional if not MVP). [Estimated time: 2 days]
-2. Allow users to add new tasks with title and description (if needed). [Estimated time: 3 days]
-3. Enable task marking as done using a checkbox or similar UI element. [Estimated time: 2 days]
-4. Implement deletion of tasks with user confirmation. [Estimated time: 2 days]
-5. Test and refactor the implemented features to ensure they meet acceptance criteria. [Estimated time: 3 days]
+- [ ] Implement user authentication and authorization using JWT or Passport.js
+- [ ] Create user management features for registration, login, and logout
+- [ ] Develop task creation functionality with title and description input fields
+- [ ] Implement marking tasks as done and deletion features
+- [ ] Implement data storage and retrieval using MongoDB and Mongoose.js
+- [ ] Add basic error handling and validation to ensure data consistency
 
 ## Phase 3: Enhancement (Week 5-6)
-### Goal: Improve the application's usability, performance, and add additional features as needed.
+### Goal: Improve the application's usability, responsiveness, and administrative features.
 
-#### Tasks:
-1. Optimize UI design for a cleaner and more user-friendly experience. [Estimated time: 3 days]
-2. Implement data persistence across sessions (e.g., saving tasks to Local Storage or IndexedDB). [Estimated time: 2 days]
-3. Improve error handling and validation mechanisms. [Estimated time: 2 days]
-4. Ensure the application adheres to accessibility standards for users with disabilities. [Estimated time: 1 day]
-5. Implement administrator functionality (optional if not MVP). [Estimated time: 3 days]
-6. Test and refactor the implemented features to ensure they meet acceptance criteria. [Estimated time: 2 days]
-7. Conduct final code reviews, fix any remaining issues, and prepare for deployment. [Estimated time: 1 day]
+- [ ] Implement a simple and intuitive user interface for easy navigation and interaction
+- [ ] Optimize the application for various devices and screen sizes using responsive design
+- [ ] Develop administrator management features to view, edit, and delete tasks across all users
+- [ ] Add additional error handling and validation mechanisms as needed
+- [ ] Conduct usability testing and make improvements based on feedback received
 
-#### Milestones:
-1. Completion of Phase 1 (Week 2)
-2. Completion of Phase 2 (Week 4)
-3. Completion of Phase 3 (Week 6)
-4. Final testing and deployment (Week 7)
+## Milestones:
+1. Foundation (Week 1-2): Completion of the project setup and establishment of core structures
+2. Core Features (Week 3-4): Implementation of user authentication, task management, and data storage/retrieval
+3. Enhancement (Week 5-6): Improvements to usability, responsiveness, and administrative features
+
+## Delivery Dates:
+- Foundation: [Date]
+- Core Features: [Date]
+- Enhancement: [Date]
