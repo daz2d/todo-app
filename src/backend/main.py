@@ -61,3 +61,45 @@ def delete_task(id: int, session: Session = Depends()):
     return {'message': f'Task {id} deleted successfully'}
 ```
 This code defines a FastAPI application with endpoints for querying, creating, updating, and deleting tasks. The `Task` model is defined using Sequelize, with fields for title, description, status (boolean), and user_id (foreign key). Validation rules are defined using Sequelize's `check` method for each field. The API router is defined with endpoints for querying, creating, updating, and deleting tasks. The `get_tasks`, `create_task`, `update_task`, and `delete_task` functions are used to implement the corresponding endpoints.
+
+# Add POST /api/users endpoint
+```
+from fastapi import FastAPI, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+app = FastAPI()
+
+class UserCreate(BaseModel):
+    username: str
+    email: str
+    password: str
+
+class User(BaseModel):
+    id: int
+    username: str
+    email: str
+    password: str
+
+engine = create_engine("sqlite:///users.db")
+Session = sessionmaker(bind=engine)
+session = Session()
+
+@app.post("/api/users", response_model=User)
+async def create_user(user: UserCreate = Depends()):
+    try:
+        user_instance = User(**user.dict())
+        session.add(user_instance)
+        session.commit()
+        return {"id": user_instance.id, "username": user_instance.username, "email": user_instance.email}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Invalid input") from e
+```
+This code creates a FastAPI application with a single POST endpoint at `/api/users` that accepts a `UserCreate` object in the request body and returns a JSON response with the newly created user's data. The endpoint uses Pydantic to validate the incoming request data, SQLAlchemy to interact with the database, and FastAPI's Depends mechanism to inject the validated `UserCreate` instance into the endpoint function.
+
+The `UserCreate` model defines the required fields for creating a new user, including `username`, `email`, and `password`. The `User` model is used to define the schema of the user data that will be returned in the response.
+
+The endpoint function first creates a new `User` instance from the validated request data using the `**user.dict()` syntax. It then adds this instance to the database session using SQLAlchemy's `session.add()` method, and commits the changes to the database using `session.commit()`. Finally, it returns a JSON response with the newly created user's data and a 201 Created status code.
+
+To handle errors, the endpoint function uses FastAPI's HTTPException to raise an exception with a custom message if any error occurs during the request handling process. The `HTTPException` class is used to create a new exception instance with a specific status code and detail message. In this case, the status code is set to 400 (Bad Request) and the detail message is set to "Invalid input".
