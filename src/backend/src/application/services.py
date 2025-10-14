@@ -1,78 +1,64 @@
 ```
-from typing import Optional
-from pydantic import BaseModel
+import json
+from typing import List
 from fastapi import FastAPI, HTTPException
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
+from .database import get_db
+from .models import User, Task
 
 app = FastAPI()
 
-class User(BaseModel):
-    username: str
-    email: str
-    password: str
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-    class Config:
-        orm_mode = True
+@app.post("/api/users", response_model=User)
+async def create_user(user: User):
+    db = get_db()
+    user.hashed_password = bcrypt.hashpw(user.password, bcrypt.gensalt())
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
 
-@app.post("/users/")
-def create_user(user: User):
-    try:
-        engine = create_engine("sqlite:///users.db")
-        Session = sessionmaker(bind=engine)
-        session = Session()
-        user_exists = session.query(User).filter_by(username=user.username).first()
-        if user_exists:
-            raise HTTPException(status_code=400, detail="Username already exists")
-        session.add(user)
-        session.commit()
-        return {"message": "User created successfully"}
-    except Exception as e:
-        print(e)
-        return {"message": "Something went wrong"}
+@app.get("/api/users", response_model=List[User])
+async def get_users():
+    db = get_db()
+    users = db.query(User).all()
+    return users
 
-@app.get("/users/")
-def read_users():
-    try:
-        engine = create_engine("sqlite:///users.db")
-        Session = sessionmaker(bind=engine)
-        session = Session()
-        users = session.query(User).all()
-        return {"users": [user.to_dict() for user in users]}
-    except Exception as e:
-        print(e)
-        return {"message": "Something went wrong"}
+@app.post("/api/tasks", response_model=Task)
+async def create_task(task: Task, current_user: User = Depends(get_current_active_user)):
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    db = get_db()
+    task.owner_id = current_user.id
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+    return task
 
-@app.put("/users/{username}")
-def update_user(username: str, user: User):
-    try:
-        engine = create_engine("sqlite:///users.db")
-        Session = sessionmaker(bind=engine)
-        session = Session()
-        user_exists = session.query(User).filter_by(username=username).first()
-        if not user_exists:
-            raise HTTPException(status_code=404, detail="User not found")
-        user_exists.email = user.email
-        user_exists.password = user.password
-        session.commit()
-        return {"message": "User updated successfully"}
-    except Exception as e:
-        print(e)
-        return {"message": "Something went wrong"}
+@app.get("/api/tasks", response_model=List[Task])
+async def get_tasks():
+    db = get_db()
+    tasks = db.query(Task).all()
+    return tasks
 
-@app.delete("/users/{username}")
-def delete_user(username: str):
-    try:
-        engine = create_engine("sqlite:///users.db")
-        Session = sessionmaker(bind=engine)
-        session = Session()
-        user_exists = session.query(User).filter_by(username=username).first()
-        if not user_exists:
-            raise HTTPException(status_code=404, detail="User not found")
-        session.delete(user_exists)
-        session.commit()
-        return {"message": "User deleted successfully"}
-    except Exception as e:
-        print(e)
-        return {"message": "Something went wrong"}
+@app.put("/api/tasks/{task_id}", response_model=Task)
+async def update_task(task_id: int, task: Task):
+    db = get_db()
+    task.owner_id = current_user.id
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+    return task
+
+@app.delete("/api/tasks/{task_id}")
+async def delete_task(task_id: int):
+    db = get_db()
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    db.delete(task)
+    db.commit()
+    return {"message": "Task deleted"}
 ```
