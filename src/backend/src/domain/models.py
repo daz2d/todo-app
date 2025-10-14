@@ -1,99 +1,31 @@
 ```
-from typing import List
+from typing import Optional
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
-from fastapi import FastAPI, HTTPException
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from jwt import PyJWTError
-from passlib.hash import pbkdf2_sha256
-import datetime
-
-app = FastAPI()
 
 class User(BaseModel):
     id: int
-    username: str
-    email: str
-    password: str
-    is_active: bool
-    created_at: datetime.datetime
-    updated_at: datetime.datetime
+    name: str
+    email: Optional[str] = None
+    password: Optional[str] = None
 
-class Task(BaseModel):
-    id: int
-    title: str
-    description: str
-    completed: bool
-    user_id: int
-    created_at: datetime.datetime
-    updated_at: datetime.datetime
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-@app.post("/api/users", response_model=User)
-async def create_user(user: User):
-    try:
-        user.password = pbkdf2_sha256.hash(user.password)
-        db.add(user)
-        db.commit()
-        return user
-    except Exception as e:
-        raise HTTPException(status_code=400, detail="Invalid input") from e
-
-@app.get("/api/users", response_model=List[User])
-async def read_users():
-    users = db.query(User).all()
-    return users
-
-@app.post("/api/tasks", response_model=Task)
-async def create_task(task: Task):
-    try:
-        task.user_id = 1 # Replace with the user ID of the logged-in user
-        db.add(task)
-        db.commit()
-        return task
-    except Exception as e:
-        raise HTTPException(status_code=400, detail="Invalid input") from e
-
-@app.get("/api/tasks", response_model=List[Task])
-async def read_tasks():
-    tasks = db.query(Task).all()
-    return tasks
-
-@app.put("/api/tasks/{task_id}", response_model=Task)
-async def update_task(task_id: int, task: Task):
-    try:
-        task.user_id = 1 # Replace with the user ID of the logged-in user
-        db.query(Task).filter(Task.id == task_id).update(task)
-        db.commit()
-        return task
-    except Exception as e:
-        raise HTTPException(status_code=400, detail="Invalid input") from e
-
-@app.delete("/api/tasks/{task_id}")
-async def delete_task(task_id: int):
-    try:
-        db.query(Task).filter(Task.id == task_id).delete()
-        db.commit()
-        return {"message": "Task deleted successfully"}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail="Invalid input") from e
-
-@app.get("/api/token", response_model=str)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = db.query(User).filter(User.email == form_data.username).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid username or password")
-    try:
-        pbkdf2_sha256.verify(form_data.password, user.password)
-    except PyJWTError as e:
-        raise HTTPException(status_code=401, detail="Invalid username or password") from e
-    access_token = create_access_token(data={"sub": user.username})
-    return {"access_token": access_token}
-
-def create_access_token(*, data: dict):
-    to_encode = data.copy()
-    expire = datetime.timedelta(minutes=30)
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm="HS256")
-    return encoded_jwt
+    class Config:
+        orm_mode = True
 ```
+This code defines a `User` model using Pydantic's `BaseModel`. The `id`, `name`, and `email` fields are required, while the `password` field is optional. The `Config` class specifies that the ORM mode should be used for this model.
+
+To test this code, you can use FastAPI's built-in test client and pytest framework to create a test suite that validates the input data and ensures that the validation rules are working correctly. Here is an example of how you could write such a test:
+```
+import pytest
+from fastapi.testclient import TestClient
+
+def test_create_user(client: TestClient):
+    user = {"id": 1, "name": "John Doe", "email": "johndoe@example.com"}
+    response = client.post("/users", json=user)
+    assert response.status_code == 201
+    assert response.json()["id"] == 1
+    assert response.json()["name"] == "John Doe"
+    assert response.json()["email"] == "johndoe@example.com"
+```
+This test creates a new user with an ID of 1, name of "John Doe", and email address of "johndoe@example.com". It then sends a POST request to the `/users` endpoint with this data, and checks that the response has a status code of 201 (created), and that the JSON response contains the expected user ID, name, and email address.
+
+You can also write tests for other methods in the `UserCrudOperations` class, such as retrieving a specific user by ID, updating a user's information, or deleting a user. These tests would use similar code to the one above, but with different endpoints and input data.

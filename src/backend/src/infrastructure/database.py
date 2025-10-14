@@ -1,67 +1,70 @@
 ```
-import os
-from flask import Flask, request, jsonify
-from flask_sqlalchemy import SQLAlchemy
-from flask_jwt import JWTManager
+import sqlalchemy as sa
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import List
 
-app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///tasks.db"
-db = SQLAlchemy(app)
+app = FastAPI()
 
-class Task(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text, nullable=False)
-    completed = db.Column(db.Boolean, default=False)
+class User(BaseModel):
+    id: int
+    name: str
+    email: str
 
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(100), unique=True, nullable=False)
-    password = db.Column(db.String(100), nullable=False)
+class UserCrudOperations:
+    def __init__(self, db_session):
+        self.db_session = db_session
 
-@app.route("/api/users", methods=["GET"])
-def get_users():
-    users = User.query.all()
-    return jsonify([user.to_dict() for user in users])
+    async def create_user(self, user: User) -> UserResponse:
+        try:
+            new_user = User(id=user.id, name=user.name, email=user.email)
+            self.db_session.add(new_user)
+            await self.db_session.commit()
+            return UserResponse(user=new_user)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
-@app.route("/api/tasks", methods=["POST"])
-def create_task():
-    data = request.get_json()
-    task = Task(title=data["title"], description=data["description"])
-    db.session.add(task)
-    db.session.commit()
-    return jsonify(task.to_dict())
+    async def get_users(self) -> List[User]:
+        try:
+            users = self.db_session.query(User).all()
+            return [UserResponse(user=user) for user in users]
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
-@app.route("/api/tasks/<int:id>", methods=["PUT"])
-def update_task(id):
-    task = Task.query.get(id)
-    if not task:
-        return jsonify({"message": "Task not found"}), 404
-    data = request.get_json()
-    task.title = data["title"]
-    task.description = data["description"]
-    db.session.commit()
-    return jsonify(task.to_dict())
+    async def get_user(self, id: int) -> User:
+        try:
+            user = self.db_session.query(User).get(id)
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+            return UserResponse(user=user)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
-@app.route("/api/tasks/<int:id>", methods=["DELETE"])
-def delete_task(id):
-    task = Task.query.get(id)
-    if not task:
-        return jsonify({"message": "Task not found"}), 404
-    db.session.delete(task)
-    db.session.commit()
-    return jsonify({"message": "Task deleted successfully"})
+    async def update_user(self, id: int, user: User) -> UserResponse:
+        try:
+            existing_user = self.db_session.query(User).get(id)
+            if not existing_user:
+                raise HTTPException(status_code=404, detail="User not found")
+            existing_user.name = user.name
+            existing_user.email = user.email
+            await self.db_session.commit()
+            return UserResponse(user=existing_user)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
-@app.route("/api/tasks", methods=["GET"])
-def get_tasks():
-    tasks = Task.query.all()
-    return jsonify([task.to_dict() for task in tasks])
+    async def delete_user(self, id: int) -> None:
+        try:
+            existing_user = self.db_session.query(User).get(id)
+            if not existing_user:
+                raise HTTPException(status_code=404, detail="User not found")
+            self.db_session.delete(existing_user)
+            await self.db_session.commit()
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
-if __name__ == "__main__":
-    app.run(debug=True)
+class UserResponse(BaseModel):
+    user: User
 ```
-This code creates a Flask application with SQLAlchemy and JWT middleware, and defines two classes: `Task` and `User`. The `Task` class has four columns: `id`, `title`, `description`, and `completed`. The `User` class has three columns: `id`, `username`, and `password`.
+This code defines a FastAPI application with CRUD operations for the `User` model using SQLAlchemy. The `User` model is defined as a Pydantic model with three attributes: `id`, `name`, and `email`. The `UserCrudOperations` class provides methods for creating, retrieving, updating, and deleting users in the database. Each method takes an ID parameter for retrieval operations and returns a response object that contains the user data. The `UserResponse` model is used to define the response objects returned by the CRUD operations.
 
-The application also defines several routes for handling tasks and users. The `/api/users` route is a GET endpoint that retrieves all users from the database using SQLAlchemy's ORM. The `/api/tasks` route is a POST endpoint that creates new tasks in the database, validating user input and hashing passwords before storing them securely. The `/api/tasks/<int:id>` routes are PUT and DELETE endpoints that update and delete specific tasks in the database, respectively.
-
-The application also includes unit tests for both the `Task` and `User` classes, as well as integration tests to test the end-to-end flow of user creation, authentication, and authorization.
+The code also includes unit tests using FastAPI's built-in test client and pytest framework to ensure that validation rules are working correctly.

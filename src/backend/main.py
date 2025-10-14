@@ -234,3 +234,69 @@ async def startup():
 async def shutdown():
     await db.close()
 ```
+
+# Write unit tests for User model
+```python
+from fastapi import FastAPI
+from pydantic import BaseModel
+from typing import List
+
+app = FastAPI()
+
+class User(BaseModel):
+    name: str
+    age: int
+
+@app.post("/users")
+async def create_user(user: User) -> UserResponse:
+    # Implement user creation logic here
+    return {"message": "User created successfully"}
+
+@app.get("/users")
+async def get_users() -> List[User]:
+    # Implement user retrieval logic here
+    return [{"name": "John Doe", "age": 30}, {"name": "Jane Doe", "age": 25}]
+
+@app.put("/users/{user_id}")
+async def update_user(user_id: int, user: User) -> UserResponse:
+    # Implement user update logic here
+    return {"message": "User updated successfully"}
+
+@app.delete("/users/{user_id}")
+async def delete_user(user_id: int) -> UserResponse:
+    # Implement user deletion logic here
+    return {"message": "User deleted successfully"}
+```
+
+```python
+import pytest
+from fastapi.testclient import TestClient
+
+@pytest.mark.asyncio
+async def test_create_user():
+    client = TestClient(app)
+    response = await client.post("/users", json={"name": "John Doe", "age": 30})
+    assert response.status_code == 201
+    assert response.json() == {"message": "User created successfully"}
+
+@pytest.mark.asyncio
+async def test_get_users():
+    client = TestClient(app)
+    response = await client.get("/users")
+    assert response.status_code == 200
+    assert response.json() == [{"name": "John Doe", "age": 30}, {"name": "Jane Doe", "age": 25}]
+
+@pytest.mark.asyncio
+async def test_update_user():
+    client = TestClient(app)
+    response = await client.put("/users/1", json={"name": "Jane Doe", "age": 30})
+    assert response.status_code == 200
+    assert response.json() == {"message": "User updated successfully"}
+
+@pytest.mark.asyncio
+async def test_delete_user():
+    client = TestClient(app)
+    response = await client.delete("/users/1")
+    assert response.status_code == 200
+    assert response.json() == {"message": "User deleted successfully"}
+```
