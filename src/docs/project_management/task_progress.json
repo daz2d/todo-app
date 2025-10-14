@@ -1,23 +1,22 @@
 {
   "total_tasks": 6,
-  "completed_tasks": 2,
+  "completed_tasks": 3,
   "current_task": {
-    "id": 2,
-    "title": "Add POST /api/users endpoint",
-    "description": " ## Technical Implementation\n\n### File Structure\n- Create: `src/api/users.py`\n- Dependencies: Import FastAPI, Pydantic, SQLAlchemy, and the User model from your project's existing models file (e.g., src/models/user.py)\n\n### Implementation Details\n- Use FastAPI to create a new POST endpoint for creating users at `/api/users`\n- Define a Pydantic UserCreate schema with required fields for username, email, and password\n- In the UsersRouter class, define a post method that takes the UserCreate instance as an argument, validates it using FastAPI's Depends(UserCreate), creates a new User instance from the validated data, saves it to the database using SQLAlchemy, and returns a JSON response with the newly created user's data and a 201 Created status code\n- To handle errors, use FastAPI's HTTPException for custom error handling. For example, if validation fails or an error occurs during database operations, raise an appropriate exception with an informative message and the corresponding HTTP status code (e.g., 400 Bad Request)\n\n### API Specification\n```python\nfrom fastapi import FastAPI, HTTPException\nfrom typing import Optional\nfrom pydantic import BaseModel\nfrom src.models import User\nfrom src.database import engine\n\napp = FastAPI()\n\nclass UserCreate(BaseModel):\n    username: str\n    email: str\n    password: str\n\n@app.post(\"/api/users\", response_model=User)\nasync def create_user(user: UserCreate):\n    db = engine.connect()\n    user_exists = db.execute(f\"SELECT 1 FROM users WHERE email={user.email}\").fetchone()\n\n    if user_exists:\n        raise HTTPException(status_code=409, detail=\"Email already in use\")\n\n    new_user = User(username=user.username, email=user.email, password=user.password)\n    db.execute(new_user.insert())\n    db.commit()\n    db.close()\n\n    return new_user\n```\n### Database Changes (if applicable)\n- Add the Users table to your PostgreSQL database schema if it doesn't exist already:\n\n```sql\nCREATE TABLE users (\n    id SERIAL PRIMARY KEY,\n    username VARCHAR(255) NOT NULL,\n    email VARCHAR(255) UNIQUE NOT NULL,\n    password VARCHAR(255) NOT NULL\n);\n```\n### Testing Requirements\n- Write unit tests for the create_user function using a testing framework like pytest\n- Write integration tests to test the end-to-end flow of creating and retrieving users\n- Store tests in `tests/test_users.py`\n\n### Acceptance Criteria (Enhanced)\n- A new User instance can be created and saved to the database upon a successful POST request to `/api/users` with valid data, returning a JSON response containing the newly created user's data and a 201 Created status code.\n- If an email already exists in the database, return a 409 Conflict status code and an error message.\n- All Task instances can be retrieved and returned as JSON using the GET endpoint at `/api/tasks` with a 200 OK status code.",
+    "id": 3,
+    "title": "Implement login form component",
+    "description": " ## Technical Implementation for Login Form Component\n\n### File Structure\n- Create: `frontend/src/components/LoginForm.js` and update `frontend/src/App.js`\n- Dependencies: Import React, Tailwind CSS, Redux, Axios, and any necessary hooks or utilities from the frontend tech stack.\n\n### Implementation Details\n- Use React to create a functional component for the login form.\n- Utilize Tailwind CSS classes for styling the form elements.\n- Implement Redux actions and reducers for handling user authentication state changes.\n- Create a form with fields for username, password, and a submit button.\n- On form submission, use Axios to send a POST request to the API endpoint defined below.\n\n### API Specification (if applicable)\n```javascript\nPOST /api/v1/auth/login\nRequest Body: { \"username\": string, \"password\": string }\nResponse: { \"token\": string }\n```\n\n### Database Changes (if applicable)\n- No direct database changes are required for this task. The API will handle user authentication and manage tokens.\n\n### Testing Requirements\n- Write unit tests for the LoginForm component, Redux actions, and reducers using a testing library such as Jest or Enzyme.\n- Perform integration tests to ensure proper communication with the API and handling of errors.\n\n### Acceptance Criteria (Enhanced)\n- The login form can be rendered on the page with fields for username and password.\n- Upon successful submission, an Axios request is sent to the specified API endpoint, and if the response contains a valid token, the user is redirected to the Todo List.\n- Upon unsuccessful submission (e.g., invalid credentials), an error message is displayed, and no API request is made.\n- The component should be styled using Tailwind CSS classes for a clean and consistent look.\n- The component should utilize Redux actions and reducers to manage user authentication state changes.\n- All tests pass without any errors or warnings.",
     "labels": [
-      "api",
-      "task-management"
+      "frontend",
+      "authentication"
     ],
     "priority": "Medium Priority",
     "story_points": 3,
     "acceptance_criteria": [
-      "A new User instance can be created and saved to the database upon successful POST request.",
-      "The response includes a status code of 201 Created and the newly created user's data.",
-      "All Task instances can be retrieved and returned as JSON.",
-      "The response includes a status code of 200 OK."
+      "The login form can be rendered on the page.",
+      "Upon successful submission, the user is authenticated and redirected to the Todo List.",
+      "Upon unsuccessful submission (e.g., invalid credentials), an error message is displayed."
     ],
-    "assignee": "Backend Developer",
+    "assignee": "UI Developer",
     "status": "completed",
     "technical_enhanced": true
   },
