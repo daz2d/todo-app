@@ -1,22 +1,20 @@
 {
   "total_tasks": 6,
-  "completed_tasks": 3,
+  "completed_tasks": 4,
   "current_task": {
-    "id": 3,
-    "title": "Implement login form component",
-    "description": " ## Technical Implementation for Login Form Component\n\n### File Structure\n- Create: `frontend/src/components/LoginForm.js` and update `frontend/src/App.js`\n- Dependencies: Import React, Tailwind CSS, Redux, Axios, and any necessary hooks or utilities from the frontend tech stack.\n\n### Implementation Details\n- Use React to create a functional component for the login form.\n- Utilize Tailwind CSS classes for styling the form elements.\n- Implement Redux actions and reducers for handling user authentication state changes.\n- Create a form with fields for username, password, and a submit button.\n- On form submission, use Axios to send a POST request to the API endpoint defined below.\n\n### API Specification (if applicable)\n```javascript\nPOST /api/v1/auth/login\nRequest Body: { \"username\": string, \"password\": string }\nResponse: { \"token\": string }\n```\n\n### Database Changes (if applicable)\n- No direct database changes are required for this task. The API will handle user authentication and manage tokens.\n\n### Testing Requirements\n- Write unit tests for the LoginForm component, Redux actions, and reducers using a testing library such as Jest or Enzyme.\n- Perform integration tests to ensure proper communication with the API and handling of errors.\n\n### Acceptance Criteria (Enhanced)\n- The login form can be rendered on the page with fields for username and password.\n- Upon successful submission, an Axios request is sent to the specified API endpoint, and if the response contains a valid token, the user is redirected to the Todo List.\n- Upon unsuccessful submission (e.g., invalid credentials), an error message is displayed, and no API request is made.\n- The component should be styled using Tailwind CSS classes for a clean and consistent look.\n- The component should utilize Redux actions and reducers to manage user authentication state changes.\n- All tests pass without any errors or warnings.",
+    "id": 6,
+    "title": "Write setup instructions for new team members",
+    "description": " ## Technical Implementation\n\n### File Structure\n- Create/modify: `backend/api/todo_api.py`\n- Dependencies: Import FastAPI, Pydantic, SQLAlchemy, and any other necessary libraries from the specified architecture.\n\n### Implementation Details\n- Use FastAPI for building the RESTful API.\n- Define routes, models (using Pydantic), and endpoints for creating, updating, deleting, and viewing tasks.\n- Implement JWT authentication using FastAPI's built-in security features.\n- Follow the RESTful API design pattern with standard HTTP methods (GET, POST, PUT, DELETE).\n\n### API Specification (if applicable)\n```python\nfrom fastapi import APIRouter, Depends, HTTPException\nfrom sqlalchemy.orm import Session\nfrom models import Todo\nfrom schemas import TodoCreate, TodoUpdate\nfrom database import get_db\n\nrouter = APIRouter()\n\n@router.post(\"/todos/\", response_model=Todo)\ndef create_todo(todo: TodoCreate, db: Session = Depends(get_db)):\n    # Implement creating a new task in the database\n    pass\n\n@router.get(\"/todos/{todo_id}\", response_model=Todo)\ndef read_todo(todo_id: int, db: Session = Depends(get_db)):\n    # Implement retrieving a specific task from the database\n    pass\n\n@router.put(\"/todos/{todo_id}\", response_model=Todo)\ndef update_todo(todo_id: int, todo: TodoUpdate, db: Session = Depends(get_db)):\n    # Implement updating a specific task in the database\n    pass\n\n@router.delete(\"/todos/{todo_id}\")\ndef delete_todo(todo_id: int, db: Session = Depends(get_db)):\n    # Implement deleting a specific task from the database\n    pass\n```\n\n### Database Changes (if applicable)\n```sql\nCREATE TABLE IF NOT EXISTS todos (\n    id SERIAL PRIMARY KEY,\n    title VARCHAR(255),\n    description TEXT,\n    completed BOOLEAN DEFAULT false\n);\n```\n\n### Testing Requirements\n- Unit tests for the `create_todo`, `read_todo`, `update_todo`, and `delete_todo` functions.\n- Integration tests for testing the entire flow of creating, updating, deleting, and viewing tasks.\n- Place unit tests in the `tests` folder with appropriate file names (e.g., `test_todo_api.py`).\n- Place integration tests in a separate folder (e.g., `integration_tests`) with appropriate file names.\n\n### Acceptance Criteria (Enhanced)\n- The instructions are easy to follow and include all necessary steps for setting up the development environment, including dependencies, database configuration, and API endpoints.\n  - Specifically, the developer should be able to run the FastAPI application locally using a PostgreSQL database.\n- The provided code follows the specified architecture and includes exact method signatures and return types.\n- Unit tests are written for each function and cover all possible edge cases.\n- Integration tests are written to test the entire flow of creating, updating, deleting, and viewing tasks.\n- Proper error handling is implemented throughout the codebase.\n- The code is well-documented with clear comments explaining the purpose of each function and class.",
     "labels": [
-      "frontend",
-      "authentication"
+      "documentation",
+      "onboarding"
     ],
     "priority": "Medium Priority",
-    "story_points": 3,
+    "story_points": 2,
     "acceptance_criteria": [
-      "The login form can be rendered on the page.",
-      "Upon successful submission, the user is authenticated and redirected to the Todo List.",
-      "Upon unsuccessful submission (e.g., invalid credentials), an error message is displayed."
+      "The instructions are easy to follow and include all necessary steps for setting up the development environment, including dependencies, database configuration, and API endpoints."
     ],
-    "assignee": "UI Developer",
+    "assignee": "Documentation Agent",
     "status": "completed",
     "technical_enhanced": true
   },
