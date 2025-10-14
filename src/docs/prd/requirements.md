@@ -1,79 +1,75 @@
  ## Requirements Document
 
 ### Project Overview
-This project aims to create a production-ready Todo List web application with modern, responsive interfaces that work on both desktop and mobile devices. The application will have RESTful API backend, data persistence, input validation, error handling, clean UI/UX design, cross-browser compatibility, comprehensive test coverage, proper security measures, performance optimization, clear documentation, and production deployment guidelines.
+This project aims to create a production-ready Todo List web application with modern, responsive UI/UX design that supports various user tasks such as creating, editing, marking as completed/incomplete, deleting, filtering, and searching tasks. The application will have a RESTful API backend, proper data persistence, input validation, error handling, and adherence to security best practices.
 
 ### User Stories
 1. As a user, I want to create new tasks with title and description so that I can manage my tasks effectively.
-2. As a user, I want to mark tasks as completed/incomplete so that I can keep track of my progress.
-3. As a user, I want to edit existing tasks so that I can update the details if necessary.
-4. As a user, I want to delete tasks so that I can remove them from my list when they are no longer relevant.
+2. As a user, I want to mark tasks as completed/incomplete so that I can track the progress of my tasks.
+3. As a user, I want to edit existing tasks so that I can modify task details if needed.
+4. As a user, I want to delete tasks so that I can remove unnecessary or completed tasks from my list.
 5. As a user, I want to view all tasks in a clean list format so that I can easily access and manage my tasks.
-6. As a user, I want to filter tasks (all, active, completed) so that I can focus on specific sets of tasks.
-7. As a user, I want to search tasks by title/description so that I can quickly find the task I'm looking for.
+6. As a user, I want to filter tasks (all, active, completed) so that I can focus on specific task categories.
+7. As a user, I want to search tasks by title/description so that I can quickly find specific tasks.
 
 ### Functional Requirements
-1. User authentication and authorization
-2. Task creation, editing, deletion, and marking as completed/incomplete
-3. Task listing with filtering and searching capabilities
-4. Error handling and user feedback
-5. Cross-browser compatibility
-6. Responsive design for mobile devices
-7. RESTful API endpoints for CRUD operations (GET, POST, PUT, DELETE)
-8. Input validation to ensure data integrity
-9. Data persistence using a suitable database or file storage system
-10. Performance optimization for fast loading times and smooth user experience
-11. Security best practices such as encryption, secure connections, and input sanitization
-12. Clear documentation and setup instructions for easy onboarding of new team members
-13. Production deployment guidelines for seamless transition to production environment
+1. Modern, responsive web interface supporting desktop and mobile devices.
+2. RESTful API backend with proper HTTP methods (GET, POST, PUT, DELETE).
+3. Data persistence using a suitable database or file storage solution.
+4. Input validation and error handling to ensure data integrity.
+5. Clean, professional UI/UX design for an enjoyable user experience.
+6. Cross-browser compatibility to ensure the application works seamlessly across various browsers.
+7. Comprehensive test coverage (unit and integration tests) to verify the functionality of the application.
+8. Proper error handling and user feedback to guide users when issues occur.
+9. Security best practices such as input sanitization, secure data storage, and protection against common web attacks.
+10. Performance optimization to ensure fast loading times and smooth user experience.
+11. Clear documentation and setup instructions for easy onboarding of new team members or external collaborators.
+12. Production deployment guidelines to facilitate the seamless deployment of the application in a production environment.
 
 ### Acceptance Criteria
-1. The application functions correctly without any major bugs or errors.
-2. All user stories are implemented as specified.
-3. The UI/UX design is clean, professional, and easy to use.
-4. The application is responsive and works well on both desktop and mobile devices.
-5. Cross-browser compatibility is ensured.
-6. RESTful API endpoints are properly implemented for CRUD operations.
-7. Data validation is in place to ensure data integrity.
-8. Error handling and user feedback mechanisms are effective.
-9. Security best practices are followed throughout the application.
-10. Performance optimization is done to ensure fast loading times and smooth user experience.
-11. Comprehensive test coverage (unit and integration tests) is in place.
-12. Clear documentation and setup instructions are provided for easy onboarding of new team members.
-13. Production deployment guidelines are provided for seamless transition to production environment.
+1. The application must allow users to create, edit, mark as completed/incomplete, delete, filter, and search tasks.
+2. The application should have a clean, modern, responsive UI/UX design that works on desktop and mobile devices.
+3. The API backend should adhere to RESTful principles and support proper HTTP methods (GET, POST, PUT, DELETE).
+4. Data persistence must be implemented using a suitable database or file storage solution.
+5. Input validation and error handling mechanisms should be in place to ensure data integrity.
+6. The application should have comprehensive test coverage (unit and integration tests) to verify its functionality.
+7. Proper error handling and user feedback should be provided when issues occur.
+8. Security best practices should be followed, including input sanitization, secure data storage, and protection against common web attacks.
+9. Performance optimization should ensure fast loading times and a smooth user experience.
+10. Clear documentation and setup instructions should be available for easy onboarding of new team members or external collaborators.
+11. Production deployment guidelines should facilitate the seamless deployment of the application in a production environment.
 
 ### Priority Features
-1. User authentication and authorization
-2. Task creation, editing, deletion, and marking as completed/incomplete
-3. Task listing with filtering and searching capabilities
-4. Error handling and user feedback
-5. Cross-browser compatibility
-6. Responsive design for mobile devices
-7. RESTful API endpoints for CRUD operations
-8. Data persistence using a suitable database or file storage system
-9. Input validation to ensure data integrity
-10. Security best practices such as encryption, secure connections, and input sanitization
-11. Performance optimization
-12. Comprehensive test coverage (unit and integration tests)
+1. Core functionality (creating, editing, marking as completed/incomplete, deleting, filtering, and searching tasks) - High priority
+2. Clean, modern, responsive UI/UX design - High priority
+3. RESTful API backend with proper HTTP methods - High priority
+4. Data persistence using a suitable database or file storage solution - High priority
+5. Input validation and error handling mechanisms - High priority
+6. Comprehensive test coverage (unit and integration tests) - High priority
+7. Proper error handling and user feedback - High priority
+8. Security best practices - High priority
+9. Performance optimization - Medium priority
+10. Clear documentation and setup instructions - Medium priority
+11. Production deployment guidelines - Low priority (can be addressed during the deployment process)
 
 ### Domain Model (DDD)
-#### Bounded Contexts:
-1. User Management Context
-2. Task Management Context
+#### Entities
+- User
+- Task
 
-#### Entities:
-1. User Entity (in User Management Context)
-2. Task Entity (in Task Management Context)
+#### Value Objects
+- Title
+- Description
+- Status (completed/incomplete)
 
-#### Value Objects:
-1. Title (associated with Task Entity)
-2. Description (associated with Task Entity)
-3. Status (completed/incomplete, associated with Task Entity)
+#### Aggregates
+- User with associated tasks
 
-#### Aggregates:
-1. User Aggregate (contains User Entity and potentially other related entities or value objects)
-2. Task Aggregate (contains Task Entity and potentially other related entities or value objects)
+#### Bounded Contexts
+1. Presentation Context: Handles the user interface and interaction with the user.
+2. Application Context: Contains the business logic for managing tasks, including validation, filtering, and searching.
+3. Infrastructure Context: Deals with data persistence, API, and security aspects.
 
 ### Architecture Guidelines
-- Apply Domain Driven Design (DDD) to identify core domains and define clear bounded contexts.
-- Structure requirements to support Hexagonal Architecture, separating the application's business logic from its infrastructure and UI. This will allow for easier testing, maintenance, and potential future changes in the application's architecture.
+- Apply Domain Driven Design (DDD) to identify core domains and define clear bounded contexts and domain models.
+- Structure requirements to support Hexagonal Architecture for loose coupling between the application's business logic and infrastructure. This will allow for easy testing, maintenance, and scalability of the application.

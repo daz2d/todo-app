@@ -1,23 +1,7 @@
 {
-  "total_tasks": 6,
-  "completed_tasks": 5,
-  "current_task": {
-    "id": 5,
-    "title": "Write unit tests for User model",
-    "description": " ## Technical Implementation\n\n### File Structure\n- Create/modify: `backend/api/users/models/user.py`\n- Dependencies: Import FastAPI, Pydantic, SQLAlchemy, and the User model schema defined below.\n\n### Implementation Details\n- Use FastAPI for building the RESTful API.\n- Define a User class that inherits from Pydantic's BaseModel to represent the user data structure. The User class should have attributes for username, email, password (hashed), and any other required fields.\n- Create a UserDB model that extends SQLAlchemy's Base model and maps to the corresponding database table. Inherit from the User class and add an id attribute as a primary key.\n- Implement CRUD operations (Create, Read, Update, Delete) for the UserDB model in the `users` router file (`backend/api/users/router.py`).\n\n### API Specification (if applicable)\n```python\nfrom fastapi import APIRouter, Depends\nfrom sqlalchemy.orm import Session\nfrom typing import Optional\n\nrouter = APIRouter()\n\nfrom .models import User, get_db\n\n@router.post(\"/register\", response_model=User)\nasync def create_user(user: User, db: Session = Depends(get_db)):\n    # Implement user creation logic here\n\n@router.get(\"/{user_id}\", response_model=User)\nasync def read_user(user_id: int, db: Session = Depends(get_db)):\n    # Implement user retrieval logic here\n\n@router.put(\"/{user_id}\", response_model=User)\nasync def update_user(user_id: int, updated_user: User, db: Session = Depends(get_db)):\n    # Implement user update logic here\n\n@router.delete(\"/{user_id}\")\nasync def delete_user(user_id: int, db: Session = Depends(get_db)):\n    # Implement user deletion logic here\n```\n\n### Database Changes (if applicable)\nCreate a `users` table in the PostgreSQL database with columns for id, username, email, hashed_password, and any other required fields.\n\n```sql\nCREATE TABLE users (\n    id SERIAL PRIMARY KEY,\n    username VARCHAR(255) NOT NULL UNIQUE,\n    email VARCHAR(255) NOT NULL UNIQUE,\n    hashed_password TEXT NOT NULL,\n    # Add any other required columns here\n);\n```\n\n### Testing Requirements\n- Write unit tests for the UserDB CRUD operations using FastAPI's built-in testing tools or a third-party testing library like pytest.\n- Create test cases for positive scenarios (e.g., successful user creation, retrieval, update, and deletion) as well as negative scenarios (e.g., invalid input validation, database errors).\n- Store the tests in a separate file (`tests/test_users.py`) within the project structure.\n\n### Acceptance Criteria (Enhanced)\n- All unit tests for UserDB CRUD operations pass without any failures or errors.\n- The `create_user`, `read_user`, `update_user`, and `delete_user` API endpoints are implemented correctly, returning the expected responses for each operation.\n- Proper input validation is in place to ensure that only valid user data is accepted by the API.\n- Database interactions are handled securely, with appropriate error handling for any potential issues (e.g., database connection errors or unique constraint violations).",
-    "labels": [
-      "testing",
-      "user-management"
-    ],
-    "priority": "Medium Priority",
-    "story_points": 2,
-    "acceptance_criteria": [
-      "All test cases pass without any failures or errors."
-    ],
-    "assignee": "QA Tester",
-    "status": "completed",
-    "technical_enhanced": true
-  },
+  "total_tasks": 7,
+  "completed_tasks": 0,
+  "current_task": null,
   "task_breakdown": {
     "backend": 0,
     "frontend": 1,

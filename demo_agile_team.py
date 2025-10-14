@@ -1,11 +1,17 @@
 """
-Simple Demo - Run the Agile Development Team
-===========================================
+Demo - Todo App Development Project
+==================================
 
-This script runs a smaller example to test the multi-agent system.
+This script demonstrates how to use the generic agile_dev_team framework
+to build a specific type of application (Todo List Web App).
 """
 
-from agile_dev_team import run_development_project
+from agile_dev_team import (
+    run_development_project, 
+    ProjectConfiguration, 
+    ProjectType,
+    create_project_from_brief
+)
 
 def main():
     """Run a simple project with the agile team"""
@@ -50,10 +56,43 @@ def main():
     This should be a complete application that can be deployed and used in production.
     """
     
-    print("🎯 Running Simple Todo App Project")
+    print("🎯 Running Todo App Development Project")
     print("=" * 50)
     
-    result = run_development_project(project_brief)
+    # Create project configuration for a Todo Web App
+    project_config = ProjectConfiguration(
+        name="TodoApp",
+        type=ProjectType.WEB_APP,
+        brief=project_brief,
+        
+        # Technology preferences for this project
+        preferred_languages=["Python", "JavaScript", "HTML", "CSS"],
+        preferred_frameworks=["FastAPI", "Vanilla JS", "Bootstrap"],
+        preferred_databases=["SQLite", "PostgreSQL"],
+        
+        # Architecture preferences
+        architecture_style="hexagonal",
+        deployment_platform="docker",
+        
+        # Quality requirements
+        test_coverage_target=85,
+        security_requirements=["input_validation", "CORS", "authentication"],
+        
+        # Output preferences
+        include_documentation=True,
+        include_tests=True,
+        include_deployment_config=True,
+        include_ci_cd=False  # Keep it simple for demo
+    )
+    
+    print(f"🏗️ Project Configuration:")
+    print(f"   📋 Name: {project_config.name}")
+    print(f"   🎯 Type: {project_config.type.value}")
+    print(f"   💻 Languages: {', '.join(project_config.preferred_languages)}")
+    print(f"   🚀 Frameworks: {', '.join(project_config.preferred_frameworks)}")
+    print(f"   🗄️ Databases: {', '.join(project_config.preferred_databases)}")
+    
+    result = run_development_project(project_config)
     
     if result:
         print("\n✅ Project completed successfully!")

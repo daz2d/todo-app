@@ -37,6 +37,8 @@ import json
 import subprocess
 from pathlib import Path
 from typing import Dict, Any, List, TypedDict, Optional
+from dataclasses import dataclass
+from enum import Enum
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -60,6 +62,169 @@ def load_env_file():
         return True
     return False
 
+# Progress Reporting Utilities
+class ProgressReporter:
+    """Utility class for detailed progress reporting"""
+    
+    @staticmethod
+    def start_activity(agent_name: str, activity: str, details: str = ""):
+        """Report the start of an activity"""
+        timestamp = time.strftime("%H:%M:%S")
+        print(f"\n[{timestamp}] 🔄 {agent_name}: Starting {activity}")
+        if details:
+            print(f"   📋 Details: {details}")
+        print(f"   ⏱️  Status: In Progress...")
+    
+    @staticmethod
+    def update_progress(agent_name: str, step: str, current: int = None, total: int = None):
+        """Report progress updates"""
+        timestamp = time.strftime("%H:%M:%S")
+        progress_str = ""
+        if current is not None and total is not None:
+            percentage = (current / total) * 100
+            progress_str = f" ({current}/{total} - {percentage:.1f}%)"
+        print(f"[{timestamp}] 🔧 {agent_name}: {step}{progress_str}")
+    
+    @staticmethod
+    def complete_activity(agent_name: str, activity: str, result: str = "", duration: float = None):
+        """Report completion of an activity"""
+        timestamp = time.strftime("%H:%M:%S")
+        duration_str = ""
+        if duration:
+            duration_str = f" (⏱️ {duration:.1f}s)"
+        print(f"[{timestamp}] ✅ {agent_name}: Completed {activity}{duration_str}")
+        if result:
+            print(f"   📊 Result: {result}")
+    
+    @staticmethod
+    def error_activity(agent_name: str, activity: str, error: str):
+        """Report an error in activity"""
+        timestamp = time.strftime("%H:%M:%S")
+        print(f"[{timestamp}] ❌ {agent_name}: Error in {activity}")
+        print(f"   🚨 Error: {error}")
+    
+    @staticmethod
+    def thinking(agent_name: str, thought: str):
+        """Report what the agent is thinking/analyzing"""
+        timestamp = time.strftime("%H:%M:%S")
+        print(f"[{timestamp}] 💭 {agent_name}: {thought}")
+
+# Project Configuration Classes
+class ProjectType(Enum):
+    """Supported project types"""
+    WEB_APP = "web_app"
+    API_SERVICE = "api_service" 
+    MOBILE_APP = "mobile_app"
+    DESKTOP_APP = "desktop_app"
+    DATA_SCIENCE = "data_science"
+    MACHINE_LEARNING = "machine_learning"
+    BLOCKCHAIN = "blockchain"
+    GAME = "game"
+    LIBRARY = "library"
+    CLI_TOOL = "cli_tool"
+    MICROSERVICE = "microservice"
+    CUSTOM = "custom"
+
+@dataclass
+class ProjectConfiguration:
+    """Configuration for a development project"""
+    name: str
+    type: ProjectType
+    brief: str
+    
+    # Technical preferences
+    preferred_languages: List[str] = None
+    preferred_frameworks: List[str] = None
+    preferred_databases: List[str] = None
+    
+    # Architecture preferences
+    architecture_style: str = "hexagonal"  # hexagonal, microservices, mvc, clean, etc.
+    
+    # Deployment preferences
+    deployment_platform: str = "docker"  # docker, kubernetes, serverless, traditional
+    
+    # Quality requirements
+    test_coverage_target: int = 80
+    performance_requirements: Dict[str, Any] = None
+    security_requirements: List[str] = None
+    
+    # Team preferences
+    development_methodology: str = "agile"  # agile, waterfall, lean
+    code_style: str = "clean_code"  # clean_code, google, pep8, etc.
+    
+    # Output preferences
+    include_documentation: bool = True
+    include_tests: bool = True
+    include_deployment_config: bool = True
+    include_ci_cd: bool = True
+    
+    def __post_init__(self):
+        """Set defaults based on project type if not specified"""
+        if self.preferred_languages is None:
+            self.preferred_languages = self._get_default_languages()
+        if self.preferred_frameworks is None:
+            self.preferred_frameworks = self._get_default_frameworks()
+        if self.preferred_databases is None:
+            self.preferred_databases = self._get_default_databases()
+        if self.performance_requirements is None:
+            self.performance_requirements = {}
+        if self.security_requirements is None:
+            self.security_requirements = []
+    
+    def _get_default_languages(self) -> List[str]:
+        """Get default programming languages based on project type"""
+        defaults = {
+            ProjectType.WEB_APP: ["Python", "JavaScript", "TypeScript"],
+            ProjectType.API_SERVICE: ["Python", "Node.js", "Go"],
+            ProjectType.MOBILE_APP: ["React Native", "Flutter", "Swift", "Kotlin"],
+            ProjectType.DESKTOP_APP: ["Python", "Electron", "C#", "Java"],
+            ProjectType.DATA_SCIENCE: ["Python", "R", "SQL"],
+            ProjectType.MACHINE_LEARNING: ["Python", "TensorFlow", "PyTorch"],
+            ProjectType.BLOCKCHAIN: ["Solidity", "JavaScript", "Python"],
+            ProjectType.GAME: ["C#", "C++", "Python", "JavaScript"],
+            ProjectType.LIBRARY: ["Python", "JavaScript", "TypeScript"],
+            ProjectType.CLI_TOOL: ["Python", "Go", "Rust"],
+            ProjectType.MICROSERVICE: ["Python", "Go", "Java"],
+            ProjectType.CUSTOM: ["Python"]
+        }
+        return defaults.get(self.type, ["Python"])
+    
+    def _get_default_frameworks(self) -> List[str]:
+        """Get default frameworks based on project type"""
+        defaults = {
+            ProjectType.WEB_APP: ["FastAPI", "React", "Next.js"],
+            ProjectType.API_SERVICE: ["FastAPI", "Express.js", "Gin"],
+            ProjectType.MOBILE_APP: ["React Native", "Flutter"],
+            ProjectType.DESKTOP_APP: ["Electron", "Tkinter", ".NET"],
+            ProjectType.DATA_SCIENCE: ["Pandas", "NumPy", "Jupyter"],
+            ProjectType.MACHINE_LEARNING: ["scikit-learn", "TensorFlow", "PyTorch"],
+            ProjectType.BLOCKCHAIN: ["Truffle", "Hardhat", "Web3.py"],
+            ProjectType.GAME: ["Unity", "Pygame", "Phaser"],
+            ProjectType.LIBRARY: ["setuptools", "webpack"],
+            ProjectType.CLI_TOOL: ["Click", "argparse", "Cobra"],
+            ProjectType.MICROSERVICE: ["FastAPI", "Docker", "Kubernetes"],
+            ProjectType.CUSTOM: ["FastAPI"]
+        }
+        return defaults.get(self.type, ["FastAPI"])
+    
+    def _get_default_databases(self) -> List[str]:
+        """Get default databases based on project type"""
+        defaults = {
+            ProjectType.WEB_APP: ["PostgreSQL", "SQLite", "Redis"],
+            ProjectType.API_SERVICE: ["PostgreSQL", "MongoDB"],
+            ProjectType.MOBILE_APP: ["SQLite", "Firebase"],
+            ProjectType.DESKTOP_APP: ["SQLite", "PostgreSQL"],
+            ProjectType.DATA_SCIENCE: ["PostgreSQL", "InfluxDB", "BigQuery"],
+            ProjectType.MACHINE_LEARNING: ["PostgreSQL", "MLflow", "TensorBoard"],
+            ProjectType.BLOCKCHAIN: ["IPFS", "PostgreSQL"],
+            ProjectType.GAME: ["SQLite", "Firebase"],
+            ProjectType.LIBRARY: ["None"],
+            ProjectType.CLI_TOOL: ["SQLite"],
+            ProjectType.MICROSERVICE: ["PostgreSQL", "Redis", "MongoDB"],
+            ProjectType.CUSTOM: ["SQLite"]
+        }
+        return defaults.get(self.type, ["SQLite"])
+
 # State definition for the development workflow
 class GitHubIssue(TypedDict):
     """Represents a GitHub issue/task"""
@@ -74,6 +239,7 @@ class GitHubIssue(TypedDict):
     status: str  # 'backlog', 'in_progress', 'completed', 'blocked'
 
 class DevelopmentState(TypedDict):
+    project_config: Optional[ProjectConfiguration]
     project_brief: str
     project_dir: str
     requirements: str
@@ -586,8 +752,16 @@ class ArchitectAgent:
         
         Project Brief: {project_brief}
         Requirements: {requirements}
+        Project Type: {project_type}
         
-        Analyze the requirements and make informed decisions about:
+        PREFERRED TECHNOLOGIES (use these as primary choices):
+        - Programming Languages: {preferred_languages}
+        - Frameworks: {preferred_frameworks} 
+        - Databases: {preferred_databases}
+        - Architecture Style: {architecture_style}
+        - Deployment Platform: {deployment_platform}
+        
+        Design architecture using the SPECIFIED preferred technologies and analyze the requirements to make informed decisions about:
         
         1. **Backend Technology Stack:**
            - Programming language (Python, Node.js, Java, Go, etc.)
@@ -635,14 +809,21 @@ class ArchitectAgent:
         
         print("🏗️ Architect: Designing technical architecture and selecting tech stack...")
         
-        # Get requirements from Product Manager
+        # Get requirements and project configuration
         requirements = state.get("requirements", "") or self.git.get_file_content("docs/prd/requirements.md")
+        project_config = state.get("project_config")
         
-        # Generate architecture specification
+        # Generate architecture specification with project preferences
         chain = self.prompt | self.llm | StrOutputParser()
         architecture = chain.invoke({
             "project_brief": state["project_brief"],
-            "requirements": requirements
+            "requirements": requirements,
+            "project_type": project_config.type.value if project_config else "web_app",
+            "preferred_languages": ", ".join(project_config.preferred_languages) if project_config else "Python, JavaScript",
+            "preferred_frameworks": ", ".join(project_config.preferred_frameworks) if project_config else "FastAPI, React",
+            "preferred_databases": ", ".join(project_config.preferred_databases) if project_config else "PostgreSQL",
+            "architecture_style": project_config.architecture_style if project_config else "hexagonal",
+            "deployment_platform": project_config.deployment_platform if project_config else "docker"
         })
         
         # Write architecture documents
@@ -1213,35 +1394,48 @@ class ProductManagerAgent:
         """)
         
     def analyze_project(self, state: DevelopmentState) -> DevelopmentState:
+        start_time = time.time()
+        
         # Check if PRD already exists
         prd_path = self.git.project_dir / "docs" / "prd" / "requirements.md"
         if prd_path.exists():
-            print("📋 Product Manager: PRD already exists, skipping requirements generation...")
-            # Read existing requirements
+            ProgressReporter.start_activity("Product Manager", "Checking existing requirements")
             requirements = self.git.get_file_content("docs/prd/requirements.md")
             state["requirements"] = requirements
+            ProgressReporter.complete_activity("Product Manager", "Requirements check", "Found existing PRD, skipping generation")
             return state
         
-        # Work directly on main branch
-        print("📋 Product Manager: Generating PRD...")
+        # Start PRD generation
+        ProgressReporter.start_activity("Product Manager", "Product Requirements Document (PRD) Generation", 
+                                       f"Analyzing project brief: {state['project_brief'][:100]}...")
+        
+        # Step 1: Analyze project brief
+        ProgressReporter.update_progress("Product Manager", "Analyzing project brief and domain requirements")
+        ProgressReporter.thinking("Product Manager", "Identifying core domains, user stories, and business requirements")
         
         # Generate requirements
         chain = self.prompt | self.llm | StrOutputParser()
+        ProgressReporter.update_progress("Product Manager", "Generating comprehensive requirements using DDD principles")
         requirements = chain.invoke({"project_brief": state["project_brief"]})
         
-        # Write requirements to files
+        # Step 2: Write requirements document
+        ProgressReporter.update_progress("Product Manager", "Writing requirements document to file", 1, 4)
         self.git.write_file("docs/prd/requirements.md", requirements)
         
-        # Create GitHub Issues template
+        # Step 3: Create GitHub Issues template
+        ProgressReporter.update_progress("Product Manager", "Creating GitHub issues from requirements", 2, 4)
+        ProgressReporter.thinking("Product Manager", "Breaking down requirements into manageable development tasks")
         issues_template = self._create_issues_from_requirements(requirements)
         self.git.write_file("docs/prd/github_issues.md", issues_template)
         
-        # Create project roadmap
+        # Step 4: Create project roadmap
+        ProgressReporter.update_progress("Product Manager", "Creating project roadmap and timeline", 3, 4)
         roadmap = self._create_project_roadmap(requirements)
         self.git.write_file("docs/prd/roadmap.md", roadmap)
         
-        # Self-review the requirements
-        print("🔍 Product Manager: Conducting self-review...")
+        # Step 5: Self-review process
+        ProgressReporter.update_progress("Product Manager", "Conducting quality self-review", 4, 4)
+        ProgressReporter.thinking("Product Manager", "Reviewing requirements for completeness, clarity, and DDD compliance")
         self_review = self.qa_manager.conduct_self_review(
             "Product Manager", 
             requirements, 
@@ -1486,13 +1680,15 @@ class UICoderAgent:
         
     def create_ui(self, state: DevelopmentState) -> DevelopmentState:
         """Work on frontend tasks from the backlog"""
+        start_time = time.time()
         task_manager = TaskManager(self.git)
         
         # Get available frontend tasks
+        ProgressReporter.start_activity("UI Developer", "Frontend Task Selection", "Scanning backlog for available UI/frontend tasks")
         available_tasks = task_manager.get_available_tasks_for_agent('frontend', state.get('tasks', []))
         
         if not available_tasks:
-            print("🎨 UI Developer: No frontend tasks available in backlog")
+            ProgressReporter.complete_activity("UI Developer", "Task Selection", "No frontend tasks available in backlog")
             return state
         
         # Pick up the highest priority task
@@ -1500,10 +1696,15 @@ class UICoderAgent:
         current_task = task_manager.assign_task(current_task, "UI Developer")
         state["current_task"] = current_task
         
-        print(f"🎨 UI Developer: Picking up task #{current_task['id']}: {current_task['title']}")
-        print(f"   Priority: {current_task['priority']}, Story Points: {current_task['story_points']}")
+        ProgressReporter.complete_activity("UI Developer", "Task Selection", 
+                                         f"Selected task #{current_task['id']}: {current_task['title']} ({current_task['priority']}, {current_task['story_points']} pts)")
+        
+        # Start UI development
+        ProgressReporter.start_activity("UI Developer", f"Frontend Task #{current_task['id']} Development", 
+                                      f"{current_task['title']} - Creating responsive UI components")
         
         # Read project context
+        ProgressReporter.update_progress("UI Developer", "Loading requirements and architecture specifications")
         requirements = self.git.get_file_content("docs/prd/requirements.md")
         architecture = state.get("architecture", "") or self.git.get_file_content("docs/architecture/tech_stack.md")
         
@@ -1675,10 +1876,17 @@ class UICoderAgent:
         try:
             # 1. Generate or update index.html
             html_chain = ChatPromptTemplate.from_template(
-                "Generate complete HTML code for this frontend task: {task_title}. "
-                "Task: {task_implementation}. "
-                "Create a full HTML page with forms, buttons, and structure for a todo app. "
-                "Return only clean HTML with proper DOCTYPE and structure."
+                "You are a code generator. Generate ONLY valid HTML code.\n"
+                "Task: {task_title}\n"
+                "Requirements: {task_implementation}\n\n"
+                "Rules:\n"
+                "- Output ONLY valid HTML code\n"
+                "- NO explanations, comments, or markdown\n"
+                "- NO ```html blocks\n"
+                "- Start directly with <!DOCTYPE html>\n"
+                "- Create a complete HTML page for a todo app\n"
+                "- Include forms, buttons, and proper structure\n\n"
+                "Generate the HTML now:"
             ) | self.llm | StrOutputParser()
             
             html_code = html_chain.invoke({
@@ -1712,10 +1920,17 @@ class UICoderAgent:
         try:
             # 2. Generate CSS styles
             css_chain = ChatPromptTemplate.from_template(
-                "Generate CSS styles for this frontend task: {task_title}. "
-                "Task: {task_implementation}. "
-                "Create modern, responsive CSS for a todo application. "
-                "Return only clean CSS with good styling."
+                "You are a code generator. Generate ONLY valid CSS code.\n"
+                "Task: {task_title}\n"
+                "Requirements: {task_implementation}\n\n"
+                "Rules:\n"
+                "- Output ONLY valid CSS code\n"
+                "- NO explanations, comments, or markdown\n"
+                "- NO ```css blocks\n"
+                "- Start directly with CSS selectors\n"
+                "- Create modern, responsive styles for a todo app\n"
+                "- Use proper CSS syntax and properties\n\n"
+                "Generate the CSS now:"
             ) | self.llm | StrOutputParser()
             
             css_code = css_chain.invoke({
@@ -1745,10 +1960,17 @@ class UICoderAgent:
         try:
             # 3. Generate JavaScript functionality
             js_chain = ChatPromptTemplate.from_template(
-                "Generate JavaScript code for this frontend task: {task_title}. "
-                "Task: {task_implementation}. "
-                "Create interactive JavaScript for todo app with API calls, DOM manipulation. "
-                "Return only clean JavaScript with proper functions."
+                "You are a code generator. Generate ONLY valid JavaScript code.\n"
+                "Task: {task_title}\n"
+                "Requirements: {task_implementation}\n\n"
+                "Rules:\n"
+                "- Output ONLY valid JavaScript code\n"
+                "- NO explanations, comments, or markdown\n"
+                "- NO ```javascript blocks\n"
+                "- Start directly with JavaScript code\n"
+                "- Create interactive functions for a todo app\n"
+                "- Include API calls, DOM manipulation, event handlers\n\n"
+                "Generate the JavaScript now:"
             ) | self.llm | StrOutputParser()
             
             js_code = js_chain.invoke({
@@ -2018,13 +2240,15 @@ class BackendCoderAgent:
         
     def create_backend(self, state: DevelopmentState) -> DevelopmentState:
         """Work on backend tasks from the backlog"""
+        start_time = time.time()
         task_manager = TaskManager(self.git)
         
         # Get available backend tasks
+        ProgressReporter.start_activity("Backend Developer", "Task Selection", "Analyzing available backend tasks in backlog")
         available_tasks = task_manager.get_available_tasks_for_agent('backend', state.get('tasks', []))
         
         if not available_tasks:
-            print("🔧 Backend Developer: No backend tasks available in backlog")
+            ProgressReporter.complete_activity("Backend Developer", "Task Selection", "No backend tasks available in backlog")
             return state
         
         # Pick up the highest priority task
@@ -2032,10 +2256,15 @@ class BackendCoderAgent:
         current_task = task_manager.assign_task(current_task, "Backend Developer")
         state["current_task"] = current_task
         
-        print(f"🔧 Backend Developer: Picking up task #{current_task['id']}: {current_task['title']}")
-        print(f"   Priority: {current_task['priority']}, Story Points: {current_task['story_points']}")
+        ProgressReporter.complete_activity("Backend Developer", "Task Selection", 
+                                         f"Selected task #{current_task['id']}: {current_task['title']} ({current_task['priority']}, {current_task['story_points']} pts)")
+        
+        # Start task implementation
+        ProgressReporter.start_activity("Backend Developer", f"Task #{current_task['id']} Implementation", 
+                                      f"{current_task['title']} - {current_task['description'][:100]}...")
         
         # Read project context
+        ProgressReporter.update_progress("Backend Developer", "Loading project requirements and architecture")
         requirements = self.git.get_file_content("docs/prd/requirements.md")
         architecture = state.get("architecture", "") or self.git.get_file_content("docs/architecture/tech_stack.md")
         
@@ -2220,18 +2449,27 @@ class BackendCoderAgent:
     
     def _write_backend_files_for_task(self, task_implementation: str, task: GitHubIssue):
         """Write backend files for a specific task"""
-        print(f"🔍 Implementing backend task: {task['title']}")
+        ProgressReporter.start_activity("Backend Developer", "Code Generation", f"Generating backend files for {task['title']}")
         
         files_created = 0
         
         # Always generate core backend files for ANY backend task
         try:
             # 1. Generate or update main.py (FastAPI app)
+            ProgressReporter.update_progress("Backend Developer", "Generating FastAPI main.py with endpoints", 1, 4)
+            ProgressReporter.thinking("Backend Developer", "Creating FastAPI application structure with proper routing and middleware")
             main_chain = ChatPromptTemplate.from_template(
-                "Generate FastAPI main.py code for this task: {task_title}. "
-                "Task: {task_implementation}. "
-                "Create a complete FastAPI application with endpoints. "
-                "Return only clean Python code with proper imports."
+                "You are a code generator. Generate ONLY valid Python code for FastAPI.\n"
+                "Task: {task_title}\n"
+                "Requirements: {task_implementation}\n\n"
+                "Rules:\n"
+                "- Output ONLY executable Python code\n"
+                "- NO explanations, comments, or markdown\n"
+                "- NO ```python blocks\n"
+                "- Start directly with imports\n"
+                "- Create a working FastAPI app with endpoints\n"
+                "- Use proper FastAPI syntax\n\n"
+                "Generate the code now:"
             ) | self.llm | StrOutputParser()
             
             api_code = main_chain.invoke({
@@ -2254,17 +2492,26 @@ class BackendCoderAgent:
                 
                 self.git.write_file("backend/main.py", updated_main)
                 files_created += 1
-                print(f"   ✅ Created/Updated backend/main.py")
+                ProgressReporter.update_progress("Backend Developer", "✅ Generated FastAPI main.py with API endpoints")
         except Exception as e:
-            print(f"⚠️ Error generating main.py: {e}")
+            ProgressReporter.error_activity("Backend Developer", "Main.py generation", str(e))
         
         try:
             # 2. Generate domain models
+            ProgressReporter.update_progress("Backend Developer", "Generating Pydantic domain models", 2, 4)
+            ProgressReporter.thinking("Backend Developer", "Designing domain entities with proper validation and business rules")
             models_chain = ChatPromptTemplate.from_template(
-                "Generate Pydantic domain models for this task: {task_title}. "
-                "Task: {task_implementation}. "
-                "Create domain entities with proper validation. "
-                "Return only clean Python code with Pydantic models."
+                "You are a code generator. Generate ONLY valid Python code for Pydantic models.\n"
+                "Task: {task_title}\n"
+                "Requirements: {task_implementation}\n\n"
+                "Rules:\n"
+                "- Output ONLY executable Python code\n"
+                "- NO explanations, comments, or markdown\n"
+                "- NO ```python blocks\n"
+                "- Start directly with imports\n"
+                "- Create Pydantic BaseModel classes\n"
+                "- Include proper field types and validation\n\n"
+                "Generate the code now:"
             ) | self.llm | StrOutputParser()
             
             models_code = models_chain.invoke({
@@ -2275,17 +2522,26 @@ class BackendCoderAgent:
             if models_code and len(models_code.strip()) > 30:
                 self.git.write_file("backend/src/domain/models.py", models_code.strip())
                 files_created += 1
-                print(f"   ✅ Created backend/src/domain/models.py")
+                ProgressReporter.update_progress("Backend Developer", "✅ Generated domain models with validation")
         except Exception as e:
-            print(f"⚠️ Error generating models: {e}")
+            ProgressReporter.error_activity("Backend Developer", "Domain models generation", str(e))
             
         try:
             # 3. Generate services/business logic
+            ProgressReporter.update_progress("Backend Developer", "Generating business logic and services", 3, 4)
+            ProgressReporter.thinking("Backend Developer", "Implementing business rules and application services")
             services_chain = ChatPromptTemplate.from_template(
-                "Generate business logic services for this task: {task_title}. "
-                "Task: {task_implementation}. "
-                "Create service classes with business methods. "
-                "Return only clean Python code with service classes."
+                "You are a code generator. Generate ONLY valid Python service classes.\n"
+                "Task: {task_title}\n"
+                "Requirements: {task_implementation}\n\n"
+                "Rules:\n"
+                "- Output ONLY executable Python code\n"
+                "- NO explanations, comments, or markdown\n"
+                "- NO ```python blocks\n"
+                "- Start directly with imports\n"
+                "- Create service classes with business logic methods\n"
+                "- Use proper Python class syntax\n\n"
+                "Generate the code now:"
             ) | self.llm | StrOutputParser()
             
             services_code = services_chain.invoke({
@@ -2303,10 +2559,17 @@ class BackendCoderAgent:
         try:
             # 4. Generate database/repository layer
             db_chain = ChatPromptTemplate.from_template(
-                "Generate database repository code for this task: {task_title}. "
-                "Task: {task_implementation}. "
-                "Create repository classes with database operations. "
-                "Return only clean Python code with repository pattern."
+                "You are a code generator. Generate ONLY valid Python repository code.\n"
+                "Task: {task_title}\n"
+                "Requirements: {task_implementation}\n\n"
+                "Rules:\n"
+                "- Output ONLY executable Python code\n"
+                "- NO explanations, comments, or markdown\n"
+                "- NO ```python blocks\n"
+                "- Start directly with imports\n"
+                "- Create repository classes with CRUD operations\n"
+                "- Use SQLAlchemy or similar database ORM\n\n"
+                "Generate the code now:"
             ) | self.llm | StrOutputParser()
             
             db_code = db_chain.invoke({
@@ -2706,6 +2969,159 @@ class DocumentationAgent:
         """Extract deployment documentation"""
         return "# Deployment Guide\n\nGenerated from full documentation..."
 
+class CodeReviewerAgent:
+    """Reviews and fixes code quality issues and bugs"""
+    
+    def __init__(self, git_manager: GitManager):
+        self.llm = code_llm  # Use CodeLlama for code review and fixes
+        self.git = git_manager
+        
+    def review_and_fix_code(self, state: DevelopmentState) -> DevelopmentState:
+        """Review all generated code and fix issues"""
+        start_time = time.time()
+        
+        ProgressReporter.start_activity("Code Reviewer", "Comprehensive Code Review", 
+                                       "Analyzing all generated code for quality issues and bugs")
+        
+        files_fixed = 0
+        
+        # Review and fix backend files
+        backend_files = [
+            "backend/main.py",
+            "backend/src/domain/models.py", 
+            "backend/src/application/services.py",
+            "backend/src/infrastructure/database.py"
+        ]
+        
+        ProgressReporter.update_progress("Code Reviewer", f"Reviewing {len(backend_files)} backend files for code quality")
+        ProgressReporter.thinking("Code Reviewer", "Checking for syntax errors, code smells, and architectural compliance")
+        
+        for i, file_path in enumerate(backend_files):
+            ProgressReporter.update_progress("Code Reviewer", f"Reviewing {file_path}", i+1, len(backend_files) + 3)
+            files_fixed += self._review_and_fix_file(file_path, "Python")
+        
+        # Review and fix frontend files
+        frontend_files = [
+            ("frontend/index.html", "HTML"),
+            ("frontend/src/app.js", "JavaScript"),
+            ("frontend/src/styles.css", "CSS")
+        ]
+        
+        for file_path, file_type in frontend_files:
+            files_fixed += self._review_and_fix_file(file_path, file_type)
+        
+        if files_fixed > 0:
+            ProgressReporter.update_progress("Code Reviewer", f"Committing fixes for {files_fixed} files to Git")
+            self.git.commit_changes(f"fix: Code review fixes for {files_fixed} files", "Code Reviewer")
+            ProgressReporter.complete_activity("Code Reviewer", "Code Quality Review", 
+                                             f"Fixed {files_fixed} files with quality issues", time.time() - start_time)
+        else:
+            ProgressReporter.complete_activity("Code Reviewer", "Code Quality Review", 
+                                             "No code quality issues found - all files look good!", time.time() - start_time)
+        
+        state["feedback"].append(f"✓ Code Reviewer: Reviewed and fixed {files_fixed} files")
+        state["code_reviewed"] = True  # Mark code review as completed
+        return state
+    
+    def _review_and_fix_file(self, file_path: str, file_type: str) -> int:
+        """Review and fix a specific file"""
+        try:
+            content = self.git.get_file_content(file_path)
+            
+            # Check if content needs fixing
+            needs_fixing = self._check_if_needs_fixing(content, file_type)
+            
+            if needs_fixing:
+                print(f"   🔧 Fixing {file_path}")
+                fixed_content = self._fix_code_content(content, file_type, file_path)
+                
+                if fixed_content and len(fixed_content.strip()) > 50:
+                    self.git.write_file(file_path, fixed_content)
+                    print(f"   ✅ Fixed {file_path}")
+                    return 1
+            else:
+                print(f"   ✅ {file_path} looks good")
+                
+        except Exception as e:
+            print(f"   ⚠️ Could not review {file_path}: {e}")
+            
+        return 0
+    
+    def _check_if_needs_fixing(self, content: str, file_type: str) -> bool:
+        """Check if code content needs fixing"""
+        # Check for common issues
+        issues = [
+            "Here is an example" in content,
+            "```" in content,  # Markdown code blocks
+            "You could implement" in content,
+            content.startswith("Here"),
+            "markdown" in content.lower(),
+            len(content.strip()) < 30
+        ]
+        
+        return any(issues)
+    
+    def _fix_code_content(self, content: str, file_type: str, file_path: str) -> str:
+        """Fix code content using CodeLlama"""
+        
+        fix_prompt = ChatPromptTemplate.from_template(
+            "You are a code fixer. The following {file_type} code has issues and needs to be fixed.\n\n"
+            "BROKEN CODE:\n{content}\n\n"
+            "INSTRUCTIONS:\n"
+            "- Fix all syntax errors and issues\n"
+            "- Remove any markdown, explanations, or non-code text\n"
+            "- Generate ONLY valid, executable {file_type} code\n"
+            "- NO explanations, comments about the task, or markdown blocks\n"
+            "- For {file_path}: Create proper {file_type} code for a todo application\n\n"
+            "FIXED CODE:"
+        ) | self.llm | StrOutputParser()
+        
+        try:
+            fixed_content = fix_prompt.invoke({
+                "file_type": file_type,
+                "content": content,
+                "file_path": file_path
+            })
+            
+            # Clean up any remaining markdown or explanations
+            fixed_content = self._clean_code_output(fixed_content, file_type)
+            
+            return fixed_content
+            
+        except Exception as e:
+            print(f"   ⚠️ Error fixing {file_path}: {e}")
+            return content
+    
+    def _clean_code_output(self, content: str, file_type: str) -> str:
+        """Clean up code output to remove any remaining issues"""
+        import re
+        
+        # Remove markdown code blocks
+        content = re.sub(r'```[\w]*\n', '', content)
+        content = re.sub(r'```', '', content)
+        
+        # Remove explanatory text at the beginning
+        lines = content.split('\n')
+        clean_lines = []
+        code_started = False
+        
+        for line in lines:
+            # Skip explanatory text before code starts
+            if not code_started:
+                if file_type == "HTML" and line.strip().startswith('<!DOCTYPE') or line.strip().startswith('<html'):
+                    code_started = True
+                elif file_type == "JavaScript" and ('function' in line or 'const' in line or 'var' in line or 'let' in line or line.strip().startswith('document')):
+                    code_started = True
+                elif file_type == "CSS" and ('{' in line or line.strip().endswith(':')):
+                    code_started = True
+                elif file_type == "Python" and ('import' in line or 'from' in line or 'def' in line or 'class' in line):
+                    code_started = True
+            
+            if code_started:
+                clean_lines.append(line)
+        
+        return '\n'.join(clean_lines).strip()
+
 class QATesterAgent:
     """Tests the code and identifies issues"""
     
@@ -3023,6 +3439,9 @@ class ProjectManagerAgent:
         self.git.write_file("docs/DEPLOYMENT_CHECKLIST.md", completion_checklist)
         self.git.write_file("docs/GETTING_STARTED.md", self._create_getting_started_guide())
         
+        # Generate startup scripts for easy running
+        self._generate_startup_scripts(state)
+        
         # Final commit
         self.git.commit_changes("docs: Final project status, deployment checklist, and getting started guide", "Project Manager")
         
@@ -3200,6 +3619,629 @@ docker-compose -f docker-compose.prod.yml up --build
 ---
 *Ready to build amazing todos! 🎉*
 """
+    
+    def _generate_startup_scripts(self, state: DevelopmentState):
+        """Generate convenient startup scripts for the project"""
+        start_time = time.time()
+        ProgressReporter.start_activity("Project Manager", "Generating Startup Scripts", 
+                                       "Creating run.py, start.bat, and docker scripts")
+        
+        project_config = state.get('project_config')
+        if not project_config:
+            project_config = type('Config', (), {
+                'name': 'GeneratedApp',
+                'preferred_frameworks': ['FastAPI', 'Vanilla JS'],
+                'preferred_databases': ['SQLite']
+            })()
+        
+        # Generate Python startup script
+        python_script = self._create_python_startup_script(project_config)
+        self.git.write_file("run.py", python_script)
+        ProgressReporter.update_progress("Project Manager", "Created run.py")
+        
+        # Generate Windows batch file  
+        batch_script = self._create_windows_batch_script(project_config)
+        self.git.write_file("start.bat", batch_script)
+        ProgressReporter.update_progress("Project Manager", "Created start.bat")
+        
+        # Generate Unix shell script
+        shell_script = self._create_shell_script(project_config)
+        self.git.write_file("start.sh", shell_script)
+        ProgressReporter.update_progress("Project Manager", "Created start.sh")
+        
+        # Generate Docker Compose for easy deployment
+        docker_compose = self._create_docker_compose(project_config)
+        self.git.write_file("docker-compose.yml", docker_compose)
+        ProgressReporter.update_progress("Project Manager", "Created docker-compose.yml")
+        
+        # Generate Dockerfile for backend
+        dockerfile = self._create_dockerfile(project_config)
+        self.git.write_file("backend/Dockerfile", dockerfile)
+        ProgressReporter.update_progress("Project Manager", "Created backend/Dockerfile")
+        
+        # Generate .env template
+        env_template = self._create_env_template(project_config)
+        self.git.write_file(".env.example", env_template)
+        ProgressReporter.update_progress("Project Manager", "Created .env.example")
+        
+        # Generate package.json for easier frontend management
+        package_json = self._create_package_json(project_config)
+        self.git.write_file("frontend/package.json", package_json)
+        ProgressReporter.update_progress("Project Manager", "Created frontend/package.json")
+        
+        # Generate requirements.txt if not exists
+        if not self.git.get_file_content("backend/requirements.txt"):
+            requirements = self._create_requirements_txt(project_config)
+            self.git.write_file("backend/requirements.txt", requirements)
+            ProgressReporter.update_progress("Project Manager", "Created backend/requirements.txt")
+        
+        ProgressReporter.complete_activity("Project Manager", "Generating Startup Scripts", 
+                                         "All startup scripts and deployment files created", time.time() - start_time)
+        
+        print("\n🚀 Startup Scripts Created:")
+        print("   ✅ run.py - One-click Python launcher")
+        print("   ✅ start.bat - Windows batch file") 
+        print("   ✅ start.sh - Unix/Mac shell script")
+        print("   ✅ docker-compose.yml - Docker deployment")
+        print("   ✅ .env.example - Environment template")
+        print("\n📋 To start the application:")
+        print("   • Python: python run.py")
+        print("   • Windows: double-click start.bat")
+        print("   • Unix/Mac: ./start.sh")
+        print("   • Docker: docker-compose up")
+    
+    def _create_python_startup_script(self, project_config) -> str:
+        """Create a Python script that starts everything"""
+        project_name = getattr(project_config, 'name', 'GeneratedApp')
+        
+        return f'''#!/usr/bin/env python3
+"""
+{project_name} - One-Click Startup Script
+========================================
+
+This script automatically sets up and starts your application:
+- Installs dependencies
+- Sets up database
+- Starts backend server
+- Opens frontend in browser
+
+Usage: python run.py
+"""
+
+import os
+import sys
+import subprocess
+import threading
+import time
+import webbrowser
+from pathlib import Path
+
+def log(message):
+    """Print timestamped log message"""
+    timestamp = time.strftime("%H:%M:%S")
+    print(f"[{{timestamp}}] {{message}}")
+
+def run_command(command, cwd=None, shell=True):
+    """Run a command and return success status"""
+    try:
+        log(f"Running: {{command}}")
+        result = subprocess.run(command, shell=shell, cwd=cwd, 
+                              capture_output=True, text=True)
+        if result.returncode == 0:
+            log(f"✅ Success: {{command}}")
+            return True
+        else:
+            log(f"❌ Failed: {{command}}")
+            log(f"Error: {{result.stderr}}")
+            return False
+    except Exception as e:
+        log(f"❌ Exception: {{e}}")
+        return False
+
+def install_backend_dependencies():
+    """Install Python backend dependencies"""
+    log("📦 Installing backend dependencies...")
+    backend_dir = Path("backend")
+    
+    if not backend_dir.exists():
+        log("❌ Backend directory not found!")
+        return False
+    
+    # Check if virtual environment should be used
+    if not os.path.exists("backend/venv") and not os.environ.get("VIRTUAL_ENV"):
+        log("🔧 Creating virtual environment...")
+        if not run_command("python -m venv venv", cwd="backend"):
+            return False
+    
+    # Install requirements
+    pip_cmd = "backend/venv/Scripts/pip" if os.name == 'nt' else "backend/venv/bin/pip"
+    if not os.path.exists(pip_cmd) and os.environ.get("VIRTUAL_ENV"):
+        pip_cmd = "pip"  # Use system pip if in virtual env
+    elif not os.path.exists(pip_cmd):
+        pip_cmd = "pip"  # Fallback to system pip
+    
+    requirements_file = "backend/requirements.txt"
+    if os.path.exists(requirements_file):
+        return run_command(f"{{pip_cmd}} install -r requirements.txt", cwd="backend")
+    else:
+        # Install common dependencies
+        deps = ["fastapi", "uvicorn", "sqlite3", "pydantic"]
+        for dep in deps:
+            if not run_command(f"{{pip_cmd}} install {{dep}}", cwd="backend"):
+                return False
+        return True
+
+def start_backend():
+    """Start the backend server"""
+    log("🚀 Starting backend server...")
+    backend_dir = Path("backend")
+    
+    # Find the main Python file
+    main_files = ["main.py", "app.py", "server.py", "run.py"]
+    main_file = None
+    
+    for file in main_files:
+        if (backend_dir / file).exists():
+            main_file = file
+            break
+    
+    if not main_file:
+        log("❌ No main Python file found in backend/")
+        return None
+    
+    # Start server
+    python_cmd = "backend/venv/Scripts/python" if os.name == 'nt' else "backend/venv/bin/python"
+    if not os.path.exists(python_cmd):
+        python_cmd = "python"  # Fallback to system python
+    
+    # Try uvicorn first, then fallback to direct python
+    uvicorn_cmd = f"uvicorn {{main_file.replace('.py', '')}}:app --reload --port 8000"
+    
+    try:
+        log(f"Starting: {{uvicorn_cmd}}")
+        process = subprocess.Popen(uvicorn_cmd, shell=True, cwd="backend")
+        time.sleep(3)  # Give server time to start
+        
+        if process.poll() is None:  # Process still running
+            return process
+        else:
+            # Fallback to direct python execution
+            log("Falling back to direct Python execution...")
+            process = subprocess.Popen(f"{{python_cmd}} {{main_file}}", 
+                                     shell=True, cwd="backend")
+            return process
+    except Exception as e:
+        log(f"❌ Failed to start backend: {{e}}")
+        return None
+
+def start_frontend():
+    """Start the frontend server"""
+    log("🌐 Starting frontend server...")
+    frontend_dir = Path("frontend")
+    
+    if not frontend_dir.exists():
+        log("❌ Frontend directory not found!")
+        return None
+    
+    try:
+        # Start simple HTTP server for frontend
+        process = subprocess.Popen(
+            "python -m http.server 8080", 
+            shell=True, 
+            cwd="frontend",
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        time.sleep(2)  # Give server time to start
+        return process
+    except Exception as e:
+        log(f"❌ Failed to start frontend: {{e}}")
+        return None
+
+def open_browser():
+    """Open the application in browser"""
+    time.sleep(5)  # Wait for servers to fully start
+    log("🌐 Opening application in browser...")
+    try:
+        webbrowser.open("http://localhost:8080")
+        log("✅ Application opened in browser!")
+    except Exception as e:
+        log(f"❌ Could not open browser: {{e}}")
+        log("📖 Manual access: http://localhost:8080")
+
+def main():
+    """Main startup function"""
+    print("🚀 {project_name} - Starting Application")
+    print("=" * 50)
+    
+    # Check if we're in the right directory
+    if not Path("backend").exists() and not Path("frontend").exists():
+        log("❌ Run this script from the project root directory")
+        log("Expected structure: backend/ and frontend/ directories")
+        return 1
+    
+    # Install dependencies
+    if not install_backend_dependencies():
+        log("❌ Failed to install backend dependencies")
+        return 1
+    
+    # Start backend server
+    backend_process = start_backend()
+    if not backend_process:
+        log("❌ Failed to start backend server")
+        return 1
+    
+    # Start frontend server
+    frontend_process = start_frontend()
+    if not frontend_process:
+        log("❌ Failed to start frontend server")
+        backend_process.terminate()
+        return 1
+    
+    # Open browser in background
+    browser_thread = threading.Thread(target=open_browser)
+    browser_thread.daemon = True
+    browser_thread.start()
+    
+    print("\\n🎉 Application Started Successfully!")
+    print("-" * 40)
+    print("📊 Backend API: http://localhost:8000")
+    print("🌐 Frontend: http://localhost:8080")
+    print("📚 API Docs: http://localhost:8000/docs")
+    print("-" * 40)
+    print("Press Ctrl+C to stop all servers")
+    
+    try:
+        # Wait for processes
+        while backend_process.poll() is None and frontend_process.poll() is None:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        log("\\n🛑 Shutting down servers...")
+        
+        if backend_process and backend_process.poll() is None:
+            backend_process.terminate()
+            log("✅ Backend server stopped")
+            
+        if frontend_process and frontend_process.poll() is None:
+            frontend_process.terminate()
+            log("✅ Frontend server stopped")
+        
+        log("👋 Application stopped. Thank you!")
+        return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
+'''
+    
+    def _create_windows_batch_script(self, project_config) -> str:
+        """Create a Windows batch file for easy startup"""
+        project_name = getattr(project_config, 'name', 'GeneratedApp')
+        
+        return f'''@echo off
+REM {project_name} - Windows Startup Script
+REM ======================================
+
+echo 🚀 Starting {project_name}...
+echo.
+
+REM Check if Python is installed
+python --version >nul 2>&1
+if errorlevel 1 (
+    echo ❌ Python is not installed or not in PATH
+    echo Please install Python from https://python.org
+    pause
+    exit /b 1
+)
+
+REM Check if we're in the right directory
+if not exist "backend" (
+    echo ❌ Backend directory not found
+    echo Please run this script from the project root directory
+    pause
+    exit /b 1
+)
+
+if not exist "frontend" (
+    echo ❌ Frontend directory not found  
+    echo Please run this script from the project root directory
+    pause
+    exit /b 1
+)
+
+echo ✅ Python found, starting application...
+echo.
+
+REM Run the Python startup script
+python run.py
+
+pause
+'''
+    
+    def _create_shell_script(self, project_config) -> str:
+        """Create a Unix/Mac shell script for easy startup"""
+        project_name = getattr(project_config, 'name', 'GeneratedApp')
+        
+        return f'''#!/bin/bash
+# {project_name} - Unix/Mac Startup Script
+# =====================================
+
+echo "🚀 Starting {project_name}..."
+echo
+
+# Check if Python is installed
+if ! command -v python3 &> /dev/null; then
+    if ! command -v python &> /dev/null; then
+        echo "❌ Python is not installed"
+        echo "Please install Python from https://python.org"
+        exit 1
+    else
+        PYTHON_CMD="python"
+    fi
+else
+    PYTHON_CMD="python3"
+fi
+
+# Check if we're in the right directory
+if [ ! -d "backend" ]; then
+    echo "❌ Backend directory not found"
+    echo "Please run this script from the project root directory"
+    exit 1
+fi
+
+if [ ! -d "frontend" ]; then
+    echo "❌ Frontend directory not found"
+    echo "Please run this script from the project root directory"  
+    exit 1
+fi
+
+echo "✅ Python found, starting application..."
+echo
+
+# Make script executable if needed
+chmod +x "$0"
+
+# Run the Python startup script
+$PYTHON_CMD run.py
+'''
+    
+    def _create_docker_compose(self, project_config) -> str:
+        """Create docker-compose.yml for containerized deployment"""
+        project_name = getattr(project_config, 'name', 'generatedapp').lower()
+        
+        return f'''version: '3.8'
+
+services:
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./app.db
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:8080
+    volumes:
+      - ./backend:/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    image: nginx:alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # Optional: Database (uncomment if using PostgreSQL)
+  # database:
+  #   image: postgres:14
+  #   environment:
+  #     POSTGRES_DB: {project_name}
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: password
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+
+# volumes:
+#   postgres_data:
+
+networks:
+  default:
+    name: {project_name}_network
+'''
+    
+    def _create_dockerfile(self, project_config) -> str:
+        """Create Dockerfile for backend"""
+        python_version = "3.11"
+        
+        return f'''# Backend Dockerfile
+FROM python:{python_version}-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \\
+    curl \\
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first (for better caching)
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# Create non-root user
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \\
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Start application
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+'''
+
+    def _create_env_template(self, project_config) -> str:
+        """Create .env.example template"""
+        project_name = getattr(project_config, 'name', 'GeneratedApp')
+        
+        return f'''# {project_name} Environment Configuration
+# Copy this file to .env and update the values
+
+# Application Settings
+APP_NAME="{project_name}"
+APP_VERSION="1.0.0"
+DEBUG=True
+
+# Server Configuration
+HOST=0.0.0.0
+PORT=8000
+
+# Database Configuration
+DATABASE_URL="sqlite:///./app.db"
+# For PostgreSQL: DATABASE_URL="postgresql://user:password@localhost/dbname"
+# For MySQL: DATABASE_URL="mysql://user:password@localhost/dbname"
+
+# Security
+SECRET_KEY="your-secret-key-here-change-this-in-production"
+ALGORITHM="HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# CORS Configuration
+CORS_ORIGINS="http://localhost:3000,http://localhost:8080,http://127.0.0.1:3000,http://127.0.0.1:8080"
+
+# Frontend URL
+FRONTEND_URL="http://localhost:3000"
+
+# Optional: External APIs
+# API_KEY="your-api-key"
+# EXTERNAL_SERVICE_URL="https://api.example.com"
+
+# Optional: Email Configuration
+# SMTP_HOST="smtp.gmail.com"
+# SMTP_PORT=587
+# SMTP_USER="your-email@gmail.com"
+# SMTP_PASSWORD="your-app-password"
+
+# Optional: Redis (for caching)
+# REDIS_URL="redis://localhost:6379"
+
+# Optional: Logging
+LOG_LEVEL="INFO"
+LOG_FILE="app.log"
+'''
+
+    def _create_package_json(self, project_config) -> str:
+        """Create package.json for frontend"""
+        project_name = getattr(project_config, 'name', 'generated-app').lower().replace(' ', '-')
+        
+        return f'''{{
+  "name": "{project_name}-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for {getattr(project_config, 'name', 'Generated App')}",
+  "main": "src/app.js",
+  "scripts": {{
+    "start": "python -m http.server 8080",
+    "dev": "python -m http.server 8080 --bind 127.0.0.1",
+    "serve": "python -m http.server 3000",
+    "build": "echo 'No build process needed for vanilla JS'",
+    "lint": "echo 'Add your preferred linter here'",
+    "format": "echo 'Add your preferred formatter here'"
+  }},
+  "keywords": [
+    "frontend",
+    "vanilla-js",
+    "html",
+    "css",
+    "javascript"
+  ],
+  "author": "AI Development Team",
+  "license": "MIT",
+  "devDependencies": {{
+    "http-server": "^14.1.1"
+  }},
+  "engines": {{
+    "node": ">=14.0.0",
+    "python": ">=3.8.0"
+  }},
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ]
+}}
+'''
+
+    def _create_requirements_txt(self, project_config) -> str:
+        """Create requirements.txt for backend"""
+        frameworks = getattr(project_config, 'preferred_frameworks', ['FastAPI'])
+        databases = getattr(project_config, 'preferred_databases', ['SQLite'])
+        
+        requirements = [
+            "# Core Framework",
+            "fastapi>=0.104.1",
+            "uvicorn[standard]>=0.24.0",
+            "",
+            "# Data & Validation", 
+            "pydantic>=2.5.0",
+            "pydantic-settings>=2.1.0",
+            "",
+            "# Database"
+        ]
+        
+        if 'PostgreSQL' in databases:
+            requirements.extend([
+                "psycopg2-binary>=2.9.9",
+                "sqlalchemy>=2.0.23"
+            ])
+        elif 'MySQL' in databases:
+            requirements.extend([
+                "pymysql>=1.1.0", 
+                "sqlalchemy>=2.0.23"
+            ])
+        else:
+            requirements.append("# SQLite is included with Python")
+        
+        requirements.extend([
+            "",
+            "# HTTP & Requests",
+            "httpx>=0.25.2",
+            "requests>=2.31.0",
+            "",
+            "# Utilities",
+            "python-multipart>=0.0.6",
+            "python-jose[cryptography]>=3.3.0",
+            "passlib[bcrypt]>=1.7.4",
+            "",
+            "# Development",
+            "pytest>=7.4.3",
+            "pytest-asyncio>=0.21.1",
+            "black>=23.11.0",
+            "flake8>=6.1.0",
+            "",
+            "# Optional: Production",
+            "gunicorn>=21.2.0"
+        ])
+        
+        return "\\n".join(requirements)
     
     def _print_completion_summary(self, state: DevelopmentState):
         """Print a comprehensive completion summary"""
@@ -3427,8 +4469,13 @@ def task_coordinator_routing(state: DevelopmentState) -> str:
     # Check if all tasks are completed
     remaining_tasks = [t for t in tasks if t['status'] != 'completed']
     if not remaining_tasks:
-        print("🎉 All tasks completed! Moving to final documentation and QA.")
-        return "project_manager"
+        # Check if code review has been done
+        if not state.get('code_reviewed', False):
+            print("🎉 All tasks completed! Running code review before final steps.")
+            return "code_reviewer"
+        else:
+            print("🎉 Code reviewed! Moving to final project management.")
+            return "project_manager"
     
     # Count remaining tasks by type
     task_counts = {'backend': 0, 'frontend': 0, 'documentation': 0, 'testing': 0}
@@ -3482,6 +4529,7 @@ def create_development_workflow(git_manager: GitManager):
     backend_agent = BackendCoderAgent(git_manager)
     doc_agent = DocumentationAgent(git_manager)
     qa_agent = QATesterAgent(git_manager)
+    code_reviewer = CodeReviewerAgent(git_manager)
     proj_mgr = ProjectManagerAgent(git_manager)
     
     # Create workflow graph
@@ -3496,6 +4544,7 @@ def create_development_workflow(git_manager: GitManager):
     workflow.add_node("backend_developer", backend_agent.create_backend)
     workflow.add_node("documentation", doc_agent.create_documentation)
     workflow.add_node("qa_tester", qa_agent.test_code)
+    workflow.add_node("code_reviewer", code_reviewer.review_and_fix_code)
     workflow.add_node("project_manager", proj_mgr.coordinate_team)
     
     # Define workflow edges for task-driven development
@@ -3513,15 +4562,17 @@ def create_development_workflow(git_manager: GitManager):
             "ui_developer": "ui_developer", 
             "documentation": "documentation",
             "qa_tester": "qa_tester",
+            "code_reviewer": "code_reviewer",
             "project_manager": "project_manager"
         }
     )
     
-    # After each agent completes a task, go back to coordinator (except project manager)
+    # After each agent completes a task, go back to coordinator (except project manager and code reviewer)
     workflow.add_edge("backend_developer", "task_coordinator")
     workflow.add_edge("ui_developer", "task_coordinator")  
     workflow.add_edge("documentation", "task_coordinator")
     workflow.add_edge("qa_tester", "task_coordinator")
+    workflow.add_edge("code_reviewer", "project_manager")  # Code reviewer goes directly to project manager
     workflow.add_edge("project_manager", END)
     
     # Add memory for state persistence
@@ -3534,11 +4585,137 @@ def create_development_workflow(git_manager: GitManager):
 # MAIN EXECUTION
 # =============================================================================
 
-def run_development_project(project_brief: str, project_name: str = "src", create_github_repo: bool = True):
+def create_project_from_brief(project_brief: str, project_name: str = "MyProject", project_type: ProjectType = ProjectType.WEB_APP, **kwargs) -> ProjectConfiguration:
+    """Configuration for a development project"""
+    name: str
+    type: ProjectType
+    brief: str
+    
+    # Technical preferences
+    preferred_languages: List[str] = None
+    preferred_frameworks: List[str] = None
+    preferred_databases: List[str] = None
+    
+    # Architecture preferences
+    architecture_style: str = "hexagonal"  # hexagonal, microservices, mvc, clean, etc.
+    
+    # Deployment preferences
+    deployment_platform: str = "docker"  # docker, kubernetes, serverless, traditional
+    
+    # Quality requirements
+    test_coverage_target: int = 80
+    performance_requirements: Dict[str, Any] = None
+    security_requirements: List[str] = None
+    
+    # Team preferences
+    development_methodology: str = "agile"  # agile, waterfall, lean
+    code_style: str = "clean_code"  # clean_code, google, pep8, etc.
+    
+    # Output preferences
+    include_documentation: bool = True
+    include_tests: bool = True
+    include_deployment_config: bool = True
+    include_ci_cd: bool = True
+    
+    def __post_init__(self):
+        """Set defaults based on project type if not specified"""
+        if self.preferred_languages is None:
+            self.preferred_languages = self._get_default_languages()
+        if self.preferred_frameworks is None:
+            self.preferred_frameworks = self._get_default_frameworks()
+        if self.preferred_databases is None:
+            self.preferred_databases = self._get_default_databases()
+        if self.performance_requirements is None:
+            self.performance_requirements = {}
+        if self.security_requirements is None:
+            self.security_requirements = []
+    
+    def _get_default_languages(self) -> List[str]:
+        """Get default programming languages based on project type"""
+        defaults = {
+            ProjectType.WEB_APP: ["Python", "JavaScript", "TypeScript"],
+            ProjectType.API_SERVICE: ["Python", "Node.js", "Go"],
+            ProjectType.MOBILE_APP: ["React Native", "Flutter", "Swift", "Kotlin"],
+            ProjectType.DESKTOP_APP: ["Python", "Electron", "C#", "Java"],
+            ProjectType.DATA_SCIENCE: ["Python", "R", "SQL"],
+            ProjectType.MACHINE_LEARNING: ["Python", "TensorFlow", "PyTorch"],
+            ProjectType.BLOCKCHAIN: ["Solidity", "JavaScript", "Python"],
+            ProjectType.GAME: ["C#", "C++", "Python", "JavaScript"],
+            ProjectType.LIBRARY: ["Python", "JavaScript", "TypeScript"],
+            ProjectType.CLI_TOOL: ["Python", "Go", "Rust"],
+            ProjectType.MICROSERVICE: ["Python", "Go", "Java"],
+            ProjectType.CUSTOM: ["Python"]
+        }
+        return defaults.get(self.type, ["Python"])
+    
+    def _get_default_frameworks(self) -> List[str]:
+        """Get default frameworks based on project type"""
+        defaults = {
+            ProjectType.WEB_APP: ["FastAPI", "React", "Next.js"],
+            ProjectType.API_SERVICE: ["FastAPI", "Express.js", "Gin"],
+            ProjectType.MOBILE_APP: ["React Native", "Flutter"],
+            ProjectType.DESKTOP_APP: ["Electron", "Tkinter", ".NET"],
+            ProjectType.DATA_SCIENCE: ["Pandas", "NumPy", "Jupyter"],
+            ProjectType.MACHINE_LEARNING: ["scikit-learn", "TensorFlow", "PyTorch"],
+            ProjectType.BLOCKCHAIN: ["Truffle", "Hardhat", "Web3.py"],
+            ProjectType.GAME: ["Unity", "Pygame", "Phaser"],
+            ProjectType.LIBRARY: ["setuptools", "webpack"],
+            ProjectType.CLI_TOOL: ["Click", "argparse", "Cobra"],
+            ProjectType.MICROSERVICE: ["FastAPI", "Docker", "Kubernetes"],
+            ProjectType.CUSTOM: ["FastAPI"]
+        }
+        return defaults.get(self.type, ["FastAPI"])
+    
+    def _get_default_databases(self) -> List[str]:
+        """Get default databases based on project type"""
+        defaults = {
+            ProjectType.WEB_APP: ["PostgreSQL", "SQLite", "Redis"],
+            ProjectType.API_SERVICE: ["PostgreSQL", "MongoDB"],
+            ProjectType.MOBILE_APP: ["SQLite", "Firebase"],
+            ProjectType.DESKTOP_APP: ["SQLite", "PostgreSQL"],
+            ProjectType.DATA_SCIENCE: ["PostgreSQL", "InfluxDB", "BigQuery"],
+            ProjectType.MACHINE_LEARNING: ["PostgreSQL", "MLflow", "TensorBoard"],
+            ProjectType.BLOCKCHAIN: ["IPFS", "PostgreSQL"],
+            ProjectType.GAME: ["SQLite", "Firebase"],
+            ProjectType.LIBRARY: ["None"],
+            ProjectType.CLI_TOOL: ["SQLite"],
+            ProjectType.MICROSERVICE: ["PostgreSQL", "Redis", "MongoDB"],
+            ProjectType.CUSTOM: ["SQLite"]
+        }
+        return defaults.get(self.type, ["SQLite"])
+
+def create_project_from_brief(project_brief: str, project_name: str = "MyProject", project_type: ProjectType = ProjectType.WEB_APP, **kwargs) -> ProjectConfiguration:
+    """Create a project configuration from a simple brief"""
+    return ProjectConfiguration(
+        name=project_name,
+        type=project_type,
+        brief=project_brief,
+        **kwargs
+    )
+
+# Helper function to maintain backward compatibility  
+def run_development_project_simple(project_brief: str, project_name: str = "src", create_github_repo: bool = True):
+    """Simple interface that creates a web app project from just a brief"""
+    config = ProjectConfiguration(
+        name="GeneratedProject",
+        type=ProjectType.WEB_APP,
+        brief=project_brief
+    )
+    return run_development_project(config, project_name, create_github_repo)
+
+def run_development_project(project_config: ProjectConfiguration, project_name: str = "src", create_github_repo: bool = True):
     """Run a complete development project with the agile team"""
     
     print("🚀 Starting Agile Development Project")
     print("=" * 60)
+    
+    # Display project configuration
+    print(f"📋 Project: {project_config.name}")
+    print(f"🎯 Type: {project_config.type.value}")
+    print(f"💻 Languages: {', '.join(project_config.preferred_languages)}")
+    print(f"🚀 Frameworks: {', '.join(project_config.preferred_frameworks)}")
+    print(f"🗄️ Databases: {', '.join(project_config.preferred_databases)}")
+    print(f"🏗️ Architecture: {project_config.architecture_style}")
     
     # Create project directory within existing Git repository (use absolute path to avoid nesting)
     project_dir = Path.cwd() / project_name
@@ -3592,7 +4769,8 @@ def run_development_project(project_brief: str, project_name: str = "src", creat
     
     # Initialize state with Git integration and quality assurance
     initial_state = DevelopmentState(
-        project_brief=project_brief,
+        project_config=project_config,
+        project_brief=project_config.brief,
         project_dir=str(project_dir),
         requirements="",
         architecture="",

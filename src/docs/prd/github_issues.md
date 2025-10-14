@@ -1,70 +1,88 @@
  Based on the provided requirements and constraints, here are some focused GitHub issues for development tasks:
 
-**Database/Models**
-1. Issue: Create User model with validation
-   **Labels:** database, user-management
+### Database/Models
+1. Issue: Create User model with validation (2 pts)
+   **Labels:** feature, database
    **Estimate:** 2 story points
-   **Description:** Implement a User model in our chosen ORM (e.g., Sequelize) with fields for username, email, and password. Add validation rules to ensure proper data integrity.
+   **Description:** Create a User model with fields for username, email, and password. Implement validation rules to ensure the data is well-formed and secure.
    **Acceptance Criteria:**
-   - [ ] A valid User instance can be created without errors.
-   - [ ] Invalid User instances are rejected with appropriate error messages.
+   - [ ] The User model has been created with required fields.
+   - [ ] Validation rules have been implemented for each field in the User model.
 
-2. Issue: Create Task model with validation
-   **Labels:** database, task-management
+2. Issue: Create Task model with validation (2 pts)
+   **Labels:** feature, database
    **Estimate:** 2 story points
-   **Description:** Implement a Task model in our chosen ORM (e.g., Sequelize) with fields for title, description, status, and user_id (foreign key). Add validation rules to ensure proper data integrity.
-   **Acceptance Criteria:**
-   - [ ] A valid Task instance can be created without errors.
-   - [ ] Invalid Task instances are rejected with appropriate error messages.
+   - [ ] The Task model has been created with required fields such as title, description, and status.
+   - [ ] Validation rules have been implemented for each field in the Task model.
 
-**API Endpoints**
-1. Issue: Add POST /api/users endpoint
-   **Labels:** api, user-management
+### API Endpoints
+1. Issue: Add GET /api/users endpoint (2 pts)
+   **Labels:** feature, api
    **Estimate:** 2 story points
-   **Description:** Implement a RESTful API endpoint for creating new users (POST /api/users).
-   **Acceptance Criteria:**
-   - [ ] A new User instance can be created and saved to the database upon successful POST request.
-   - [ ] The response includes a status code of 201 Created and the newly created user's data.
+   - [ ] Implement a GET endpoint to retrieve all users from the database.
+   - [ ] Ensure proper authentication and authorization for the endpoint.
 
-2. Issue: Add GET /api/tasks endpoint
-   **Labels:** api, task-management
+2. Issue: Add POST /api/users endpoint (2 pts)
+   **Labels:** feature, api
+   **Estimate:** 2 story points
+   - [ ] Implement a POST endpoint to create new users in the database.
+   - [ ] Ensure proper authentication and authorization for the endpoint.
+
+### Frontend Components
+1. Issue: Implement login form component (3 pts)
+   **Labels:** feature, frontend
    **Estimate:** 3 story points
-   **Description:** Implement a RESTful API endpoint for retrieving all tasks (GET /api/tasks).
-   **Acceptance Criteria:**
-   - [ ] All Task instances can be retrieved and returned as JSON.
-   - [ ] The response includes a status code of 200 OK.
+   - [ ] Create a reusable login form component that handles user input and submits requests to the API for authentication.
+   - [ ] Ensure proper error handling and user feedback when login fails or succeeds.
 
-**Frontend Components**
-1. Issue: Implement login form component
-   **Labels:** frontend, authentication
+2. Issue: Implement task list component (3 pts)
+   **Labels:** feature, frontend
    **Estimate:** 3 story points
-   **Description:** Create a reusable login form component that handles user input and communicates with the API for authentication.
-   **Acceptance Criteria:**
-   - [ ] The login form can be rendered on the page.
-   - [ ] Upon successful submission, the user is authenticated and redirected to the Todo List.
-   - [ ] Upon unsuccessful submission (e.g., invalid credentials), an error message is displayed.
+   - [ ] Create a reusable task list component that displays tasks in a clean, modern format and allows users to interact with them (create, edit, mark as completed/incomplete, delete).
+   - [ ] Implement filtering and searching functionality for the task list.
 
-**Business Logic**
-1. Issue: Implement task creation service method
-   **Labels:** business-logic, task-management
-   **Estimate:** 2 story points
-   **Description:** Create a service method for creating new tasks and associating them with the authenticated user.
-   **Acceptance Criteria:**
-   - [ ] A new Task instance can be created and saved to the database upon successful API request.
-   - [ ] The response includes a status code of 201 Created and the newly created task's data.
+### Authentication
+1. Issue: Implement login service (3 pts)
+   **Labels:** feature, authentication
+   **Estimate:** 3 story points
+   - [ ] Create a service that handles user authentication by validating credentials against the database and returning an authenticated user object if successful.
 
-**Testing**
-1. Issue: Write unit tests for User model
-   **Labels:** testing, user-management
-   **Estimate:** 2 story points
-   **Description:** Write unit tests to ensure proper validation and database interaction of the User model.
-   **Acceptance Criteria:**
-   - [ ] All test cases pass without any failures or errors.
+2. Issue: Implement logout functionality (1 pt)
+   **Labels:** feature, authentication
+   **Estimate:** 1 story point
+   - [ ] Implement a logout function that removes the authenticated user from the application's context and redirects the user to the login page.
 
-**Documentation**
-1. Issue: Write setup instructions for new team members
-   **Labels:** documentation, onboarding
+### Business Logic
+1. Issue: Implement task creation service (2 pts)
+   **Labels:** feature, business logic
    **Estimate:** 2 story points
-   **Description:** Write clear and concise setup instructions for new team members to quickly get up-to-speed with the project.
-   **Acceptance Criteria:**
-   - [ ] The instructions are easy to follow and include all necessary steps for setting up the development environment, including dependencies, database configuration, and API endpoints.
+   - [ ] Create a service that handles creating new tasks in the database and returns them to the client.
+   - [ ] Ensure proper validation of task data before saving it to the database.
+
+2. Issue: Implement task updating service (2 pts)
+   **Labels:** feature, business logic
+   **Estimate:** 2 story points
+   - [ ] Create a service that handles updating existing tasks in the database based on user input.
+   - [ ] Ensure proper validation of task data before saving it to the database.
+
+### Testing
+1. Issue: Write unit tests for User model (2 pts)
+   **Labels:** testing, database
+   **Estimate:** 2 story points
+   - [ ] Write unit tests for the User model to ensure that validation rules are working correctly and that data is being saved and retrieved properly.
+
+2. Issue: Write unit tests for Task model (2 pts)
+   **Labels:** testing, database
+   **Estimate:** 2 story points
+   - [ ] Write unit tests for the Task model to ensure that validation rules are working correctly and that data is being saved and retrieved properly.
+
+### Documentation
+1. Issue: Write setup instructions (2 pts)
+   **Labels:** documentation
+   **Estimate:** 2 story points
+   - [ ] Create clear, concise setup instructions for new team members or external collaborators to easily onboard and start contributing to the project.
+
+2. Issue: Write API documentation (3 pts)
+   **Labels:** documentation
+   **Estimate:** 3 story points
+   - [ ] Write comprehensive API documentation that includes details about each endpoint, its purpose, required parameters, and expected responses.
