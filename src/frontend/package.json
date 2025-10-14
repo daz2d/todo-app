@@ -1,13 +1,35 @@
 {
-  "name": "frontend",
+  "name": "todoapp-frontend",
   "version": "1.0.0",
-  "description": "Frontend for AI-generated application",
-  "main": "index.html",
+  "description": "Frontend for TodoApp",
+  "main": "src/app.js",
   "scripts": {
-    "start": "python -m http.server 8000",
-    "dev": "python -m http.server 8000",
-    "build": "echo 'Build not configured'"
+    "start": "python -m http.server 8080",
+    "dev": "python -m http.server 8080 --bind 127.0.0.1",
+    "serve": "python -m http.server 3000",
+    "build": "echo 'No build process needed for vanilla JS'",
+    "lint": "echo 'Add your preferred linter here'",
+    "format": "echo 'Add your preferred formatter here'"
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "keywords": [
+    "frontend",
+    "vanilla-js",
+    "html",
+    "css",
+    "javascript"
+  ],
+  "author": "AI Development Team",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "python": ">=3.8.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ]
 }
