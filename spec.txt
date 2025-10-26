@@ -1,0 +1,285 @@
+
+SPEC TITLE: LangGraph Agile Team (Code Llama via Ollama) — Build Instructions (No Code)
+SPEC VERSION: 1.0
+AUTHOR INTENT: Provide a single, explicit specification that Copilot Agent Mode can follow to generate an entire repository implementing a multi‑agent agile software team using LangGraph and LangChain, backed by Code Llama (via Ollama). This spec purposefully contains no executable code—only instructions, structure, behaviors, and acceptance criteria.
+
+-------------------------------------------------------------------------------
+HIGH‑LEVEL OBJECTIVES
+-------------------------------------------------------------------------------
+1) Create a Python 3.11+ repository named `langteam` that implements a multi‑agent system using LangGraph/LangChain representing an agile software team:
+   - Product Manager (PM)
+   - Staff Engineer A (Backend/Infra, ~20 years experience)
+   - Staff Engineer B (Frontend/ML/Glue, ~20 years experience)
+   - Code Reviewer
+   The loop is PM → Backend → Frontend → Reviewer → (repeat until APPROVED or cap).
+
+2) Primary model is Code Llama via Ollama to minimize cost and token usage. Provide configuration hooks for other providers (e.g., Together, HF), but default to Ollama with a Code Llama model.
+
+3) Provide explicit tools for the agents:
+   - HTTP (GET/POST) capability for web APIs.
+   - CLI capability executed in a sandbox folder with safety guardrails and a per‑turn cap.
+   - Git commit helper (stage/commit with message).
+   - MCP bridge stub with configuration file for MCP servers (filesystem by default; easily extended).
+
+4) Provide policy prompts: safety constraints, do’s/don’ts, and a clear Definition of Done (DoD).
+
+5) Provide a LangGraph state machine where:
+   - PM produces/maintains SPEC.md (acceptance criteria are numbered and testable).
+   - Backend and Frontend produce incremental design/implementation notes and propose changes.
+   - Reviewer enforces DoD, requests changes, or marks “APPROVED” to end the loop.
+   - The system iterates until “APPROVED” or a configurable MAX_TURNS limit is reached.
+
+6) Provide a runnable entrypoint that accepts a user goal string (or prompts via PM if empty), runs the graph to completion (or cap), and prints a concise report (SPEC, review notes, backend notes, frontend notes, approvals, turn count).
+
+7) Include minimal tests that confirm imports and a single iteration can run (no business logic assertions required). No code here—just describe test intent and filenames.
+
+8) Include BOOTSTRAP instructions for installation, model pull, environment setup, and a quick sanity run.
+
+-------------------------------------------------------------------------------
+REPO LAYOUT (FILES TO CREATE)
+-------------------------------------------------------------------------------
+langteam/
+  README.md                 # Purpose, architecture overview, usage, configuration, safety notes.
+  BOOTSTRAP.md              # Step-by-step to install dependencies, set env, pull model, run quick test.
+  pyproject.toml            # Minimal project metadata (no dependencies declared here).
+  requirements.txt          # Runtime dependencies list (exact package names and minimal versions).
+  .env.example              # Environment variables (LLM provider/model, limits, timeouts).
+  .gitignore                # Ignore venv, caches, .env, sandbox folder, etc.
+  .copilot/SEED_TASK.md     # A short task list for Copilot to validate the build (see below).
+
+  config/
+    settings.yaml           # Reads env vars; sets model/provider; per-turn limits; tool toggles.
+    mcp_servers.json        # List of MCP servers (filesystem as default).
+
+  prompts/
+    system/
+      pm.md                 # PM persona/behavior/goals and handoff protocol.
+      staff_backend.md      # Staff Backend persona/behavior/goals.
+      staff_frontend.md     # Staff Frontend persona/behavior/goals.
+      reviewer.md           # Reviewer persona/behavior and “APPROVED” protocol.
+    policies/
+      safety.md             # Guardrails for shell usage, secrets, turn limits.
+      dos_and_donts.md      # Team norms for iteration, tests, docs.
+      definition_of_done.md # Clear DoD used by Reviewer to accept or reject.
+
+  src/
+    __init__.py             # Standard package initializer (empty).
+    llm.py                  # Provides get_chat_model() based on env/provider.
+    tools.py                # Declares HTTP/CLI/Git tools with safety constraints and caps.
+    mcp_bridge.py           # Describes how to map MCP servers to tools; include a stub + TODO.
+    memory.py               # Simple conversational memory facility.
+    roles.py                # Loads prompt files and exposes them to nodes.
+    graph.py                # Defines TeamState, nodes (PM/Backend/Frontend/Reviewer), and edges.
+    run_team.py             # CLI entrypoint that builds graph, seeds state, runs to completion, prints outcomes.
+
+  tests/
+    test_boot.py            # Verifies imports and repository wiring succeed (no logic tests).
+    test_graph.py           # Verifies one full iteration of the graph can execute using default model.
+
+-------------------------------------------------------------------------------
+FILE CONTENT REQUIREMENTS (DESCRIPTIVE, NO CODE)
+-------------------------------------------------------------------------------
+
+1) README.md (write prose, not code)
+   - Explain the purpose: a multi‑agent agile team built with LangGraph/LangChain, defaulting to Code Llama via Ollama.
+   - Describe agents and their responsibilities:
+     • PM: gathers requirements, produces SPEC.md, maintains acceptance criteria.
+     • Staff Backend: designs/implements backend/infra slices; documents trade-offs.
+     • Staff Frontend: designs/implements UI/SDK/LLM glue; focuses on developer experience.
+     • Reviewer: enforces DoD; loops until APPROVED.
+   - Explain tools:
+     • HTTP: basic GET/POST for APIs (timeouts from env).
+     • Shell: executes commands within ./sandbox with per‑turn cap; mentions blocked dangerous patterns.
+     • Git: stage+commit helper for small atomic commits.
+     • MCP: stub with config file; instructions on adding new servers.
+   - Configuration overview:
+     • .env variables (LLM_PROVIDER, LLM_MODEL; safety caps; timeouts).
+     • config/settings.yaml binds to env.
+     • config/mcp_servers.json lists servers to wire later.
+   - Quickstart summary referencing BOOTSTRAP.md.
+   - Safety section calling out guardrails and approval loop.
+   - Extensibility notes: swapping models/providers, adding browser automation, expanding MCP.
+
+2) BOOTSTRAP.md (write ordered steps, not code)
+   - Prereqs: Python 3.11+, Git.
+   - Install Ollama (point to official install command but do not execute in the doc).
+   - Pull a Code Llama model by name (e.g., “codellama:latest”)—document the command textually.
+   - Create and activate a virtual environment.
+   - Install dependencies from requirements.txt.
+   - Copy .env.example → .env and verify default variables.
+   - Run the entrypoint with an example user goal string (text of the command only, do not include actual code).
+   - Expected outcome: console shows a generated SPEC, notes from engineers, reviewer decision, approvals array, and turn count.
+   - Troubleshooting: increase MAX_TURNS, decrease temperature (described), verify Ollama is running, check firewall/network for HTTP tools.
+
+3) pyproject.toml
+   - Minimal metadata (project name, version, description, requires-python).
+   - Do not list runtime dependencies here—use requirements.txt instead.
+
+4) requirements.txt
+   - List the following libraries with minimal pinned versions (no code): langchain, langgraph, langchain‑community, python‑dotenv, pydantic, requests, tqdm, rich, ollama, websocket-client.
+
+5) .env.example
+   - Document environment variables:
+     • LLM_PROVIDER defaults to “ollama”.
+     • LLM_MODEL defaults to “codellama:latest”.
+     • TOGETHER_API_KEY and HF_API_TOKEN placeholders (empty by default).
+     • MAX_TURNS and MAX_SHELL_CMDS_PER_TURN recommended defaults.
+     • HTTP_TIMEOUT_SECONDS.
+   - Note: users may switch providers by updating LLM_PROVIDER/LLM_MODEL and installing the necessary runtime client.
+
+6) config/settings.yaml
+   - Describe that fields read from .env:
+     • llm.provider and llm.model.
+     • limits.max_turns and limits.max_shell_cmds_per_turn.
+     • tools toggles (allow_shell, allow_http, allow_git, allow_fs, allow_mcp) and http timeout.
+
+7) config/mcp_servers.json
+   - Provide a JSON object with a “servers” array.
+   - Include a default entry for a filesystem server with stdio transport and root “.”.
+   - Mention that additional servers (e.g., Jira, GitHub, browser) can be appended.
+
+8) prompts/policies/safety.md (plain text)
+   - Shell commands must run only in ./sandbox by default.
+   - Prohibit destructive patterns (e.g., “rm -rf”, “sudo ”, changing system permissions).
+   - Respect MAX_TURNS and per‑turn shell caps.
+   - Never print full secrets; redact tokens/keys.
+   - Request explicit user confirmation for any irreversible action.
+
+9) prompts/policies/dos_and_donts.md (plain text)
+   - DO: Ask clarifying questions early (via PM); prefer minimal reproducible examples; commit small, atomic changes; write tests for core logic; update docs.
+   - DON’T: Assume frameworks/languages; bypass reviewer; ship without meeting DoD; hardcode secrets or credentials.
+
+10) prompts/policies/definition_of_done.md (plain text)
+   - Requirements and acceptance criteria are satisfied.
+   - Local build passes without errors.
+   - Unit tests cover core logic pathways; lints pass if configured.
+   - README reflects current run instructions and limitations.
+   - Reviewer has written “APPROVED”.
+
+11) prompts/system/pm.md (plain text)
+   - Role: Product Manager.
+   - When started with no clear goal, ask for: product goal, target user(s), constraints, must‑haves, nice‑to‑haves, non‑goals, timeline, acceptance criteria style.
+   - Produce SPEC.md with numbered acceptance criteria. Keep them testable and minimal.
+   - Break SPEC into short tasks for Backend and Frontend; update SPEC after review feedback and user input.
+   - Handoff format: concise bullet tasks with priorities and dependencies.
+
+12) prompts/system/staff_backend.md (plain text)
+   - Role: Staff Engineer (Backend/Infra).
+   - Responsibilities: service/API design, storage choices, CLI tooling, deployment and integration; interface with MCP tools.
+   - Expectations: propose architecture options with trade‑offs, choose a minimal viable path, implement incremental slices, write unit tests, log assumptions, document commands required to reproduce.
+
+13) prompts/system/staff_frontend.md (plain text)
+   - Role: Staff Engineer (Frontend/ML/Glue).
+   - Responsibilities: UI/SDKs, LLM glue pipelines, LangGraph wiring/adapters, developer experience.
+   - Expectations: deliver a small end‑to‑end demo first; wire the model/tools; add tests for critical flows; document usage and pitfalls.
+
+14) prompts/system/reviewer.md (plain text)
+   - Role: Code Reviewer.
+   - Tasks: review diffs/notes against DoD and SPEC acceptance criteria; request explicit changes with actionable items.
+   - Termination protocol: when satisfied, include the word “APPROVED” (case‑insensitive) and a brief rationale. Otherwise, enumerate change requests and send the loop back to PM.
+
+15) src/__init__.py
+   - Provide an empty package initializer (no code content required here in this spec).
+
+16) src/llm.py (describe behavior only)
+   - Expose a single function (name: get_chat_model) that selects a chat model based on LLM_PROVIDER and LLM_MODEL.
+   - Support providers: “ollama” (default), optionally “together”, optionally “hf”.
+   - Default temperature low (e.g., 0.2) for determinism.
+   - If provider is unsupported, raise a clear error with provider name and guidance to edit .env.
+
+17) src/tools.py (describe behavior only)
+   - Provide three tools:
+     • http_get(url): performs GET with a user‑agent, applies a global HTTP timeout read from env; if JSON is returned, pretty‑print; otherwise capture text (truncate generously if needed).
+     • http_post(url, json_body): performs POST with JSON payload; same timeout/pretty behavior.
+     • shell(cmd): executes commands only within ./sandbox; enforce a per‑turn command limit read from env; block destructive patterns (list examples) and return a blocked message if detected; provide combined stdout/stderr; cap runtime per command.
+     • git(message): stages and commits all changes with the provided message; on failure, emit an error message.
+   - Tools should be declared in a way that agents can call them via LangChain tool binding.
+
+18) src/mcp_bridge.py (describe behavior only)
+   - Read MCP server definitions from config/mcp_servers.json.
+   - Provide a discovery function that returns the list of configured servers by name.
+   - Document a TODO to map each server to a LangChain tool by spawning stdio/JSON‑RPC clients and exposing basic operations; keep this as a stub in initial version.
+
+19) src/memory.py (describe behavior only)
+   - Provide a simple conversation buffer memory keyed on “history” that returns messages for context.
+
+20) src/roles.py (describe behavior only)
+   - Load and expose the text content of the policy and system prompts for use by graph nodes.
+
+21) src/graph.py (describe behavior only)
+   - Define a typed state (TeamState) containing: user_goal, spec, backend_notes, frontend_notes, review_notes, approvals (list), turns (int).
+   - Provide four nodes: pm_node, be_node, fe_node, reviewer_node.
+   - Bind the HTTP, POST, shell, and git tools to the LLM used by each node.
+   - PM node: if SPEC is missing or unclear, create/append SPEC with numbered acceptance criteria and propose concrete subtasks.
+   - Backend node: advance SPEC by proposing/implementing backend slice; summarize changes and next steps.
+   - Frontend node: advance SPEC by proposing/implementing frontend/glue slice; summarize changes and next steps.
+   - Reviewer node: compare work against DoD and SPEC; if satisfied, append an approval marker and include the word “APPROVED”; otherwise list explicit change requests.
+   - Graph edges: PM → Backend → Frontend → Reviewer → (conditional) PM or END.
+   - Termination condition: END when reviewer has approved or when turns reach MAX_TURNS (read from env); otherwise loop back to PM.
+   - Compile the graph for execution by the entrypoint.
+
+22) src/run_team.py (describe behavior only)
+   - Accept an optional user goal string from CLI arguments; if empty, instruct PM to elicit requirements.
+   - Build the graph; seed an initial state with empty fields and turns = 0.
+   - Run the graph once to completion (approval or cap).
+   - Print a human‑readable report that includes SPEC, review notes, backend notes, frontend notes, approvals list, and total turns.
+
+23) tests/test_boot.py (describe behavior only)
+   - Import the graph builder; assert it is callable. This verifies basic import wiring of the repo.
+
+24) tests/test_graph.py (describe behavior only)
+   - Build the graph; invoke a single iteration with a trivial user goal; assert that a SPEC string is produced in the returned state. This ensures the basic loop can run with the default model provider.
+
+25) .copilot/SEED_TASK.md (write as a checklist)
+   - Create all files exactly as specified by this spec.
+   - Initialize a Git repository, add all files, make an initial commit.
+   - Ensure dependencies install without conflict.
+   - Ensure a default model is configured in .env.example (codellama via Ollama).
+   - Ensure the entrypoint can run end‑to‑end with a trivial goal (e.g., “demo a TODO app”).
+   - Write a short section in BOOTSTRAP.md titled “Sanity Check” that explains the expected console sections (“SPEC”, “REVIEW”, “BACKEND”, “FRONTEND”, “APPROVALS”, “Turns”).
+
+-------------------------------------------------------------------------------
+BEHAVIORAL ACCEPTANCE CRITERIA
+-------------------------------------------------------------------------------
+A) Running the entrypoint with a user goal produces:
+   - A generated SPEC with numbered acceptance criteria.
+   - Backend and Frontend notes describing proposed/implemented slices and next steps.
+   - Reviewer notes either including “APPROVED” with rationale or a list of explicit change requests.
+   - An approvals list (empty or containing reviewer) and a turn count integer.
+
+B) Safety:
+   - Shell tool never runs outside ./sandbox by default.
+   - Disallowed patterns yield a clear “blocked” message.
+   - Per‑turn shell command cap is enforced and configurable through env.
+   - HTTP requests use a timeout from env and include a simple user‑agent string.
+   - Secrets are never printed in full in logs or reports (redaction expected).
+
+C) Configurability:
+   - Switching the model or provider only requires editing .env and restarting.
+   - MAX_TURNS and per‑turn shell cap are adjustable via .env.
+   - Adding MCP servers only requires editing config/mcp_servers.json and extending the bridge (documented TODO).
+
+D) Developer Experience:
+   - README and BOOTSTRAP give a clear path from zero to first run.
+   - Tests can be executed in a fresh environment and complete quickly.
+   - All files present with correct names/locations.
+
+-------------------------------------------------------------------------------
+NON‑GOALS / BOUNDS
+-------------------------------------------------------------------------------
+- Do not include executable code in this spec file; Copilot should generate implementation per the descriptions.
+- Do not grant unrestricted root‑level shell access; keep default behavior sandboxed.
+- Do not assume any specific web framework or database; engineers decide per task with PM approval.
+- Browser automation tools are out of scope for the initial version (HTTP tools suffice); can be added later.
+- MCP bridge beyond discovery is a TODO for future extension.
+
+-------------------------------------------------------------------------------
+NOTES FOR COPILOT AGENT MODE
+-------------------------------------------------------------------------------
+- Follow this document literally; generate the repository with files exactly as specified.
+- Ensure that any generated code adheres to the behaviors and constraints described.
+- Keep the language and structure clean; small, readable functions; clear docstrings; minimal global state.
+- Prefer deterministic defaults: low temperature, explicit seeds if supported.
+- Where a choice is required (e.g., logging library), choose a minimal, common option and document it in README.
+
+END OF SPEC

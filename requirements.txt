@@ -1,17 +1,33 @@
-# LangChain and related packages
-langchain>=0.2.0
+# LangChain and LangGraph - Multi-agent orchestration
+langchain>=0.1.0,<0.4.0
+langgraph>=0.0.40
+langchain-community>=0.0.20
 langchain-ollama>=0.1.0
-langchain-core>=0.2.0
-langgraph>=0.1.0
+langchain-core>=0.3.72,<1.0.0  # Pin to avoid breaking changes
 
-# GitHub integration
-PyGithub>=1.59.0
+# LLM Providers
+ollama>=0.1.0
+# Optional: uncomment if using OpenAI
+langchain-openai>=0.2.0,<1.0.0  # Compatible with langchain 0.3.x
+# Optional: uncomment if using Together AI
+# together>=0.2.0
+# Optional: uncomment if using Hugging Face
+# huggingface-hub>=0.19.0
 
-# Development and testing (optional)
-# pytest>=7.0.0
-# black>=23.0.0
-# flake8>=6.0.0
+# Environment and Configuration
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+pyyaml>=6.0
 
-# Note: This project also requires Ollama to be installed locally
-# Install Ollama from: https://ollama.com/
-# Required models: mistral:7b, codellama:7b
+# HTTP Tools
+requests>=2.31.0
+
+# CLI and Output Formatting
+rich>=13.0.0
+tqdm>=4.65.0
+
+# MCP Protocol Support
+websocket-client>=1.6.0
+
+# Memory and Learning (SQLite is included with Python)
+# No additional packages needed for basic SQLite support

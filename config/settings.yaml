@@ -1,0 +1,118 @@
+# LangTeam Settings Configuration
+# This file binds to environment variables for centralized configuration
+
+llm:
+  # LLM provider: ollama, together, hf
+  provider: ${LLM_PROVIDER:ollama}
+  
+  # Model name (provider-specific)
+  model: ${LLM_MODEL:codellama:latest}
+  
+  # Temperature for generation (0.0-1.0, lower = more deterministic)
+  temperature: ${LLM_TEMPERATURE:0.2}
+  
+  # Ollama-specific settings
+  ollama:
+    base_url: ${OLLAMA_BASE_URL:http://localhost:11434}
+  
+  # Maximum tokens per response (0 = no limit)
+  max_tokens: ${MAX_TOKENS:0}
+  
+  # Retry configuration
+  max_retries: ${MAX_RETRIES:3}
+  retry_delay: ${RETRY_DELAY:2}
+
+limits:
+  # Maximum iteration cycles (PM → Backend → Frontend → Reviewer)
+  max_turns: ${MAX_TURNS:10}
+  
+  # Maximum shell commands per agent per turn
+  max_shell_cmds_per_turn: ${MAX_SHELL_CMDS_PER_TURN:5}
+
+tools:
+  # Enable/disable tool categories
+  allow_shell: ${ALLOW_SHELL:true}
+  allow_http: ${ALLOW_HTTP:true}
+  allow_git: ${ALLOW_GIT:true}
+  allow_fs: ${ALLOW_FS:true}
+  allow_mcp: ${ALLOW_MCP:true}
+  
+  # HTTP tool configuration
+  http:
+    timeout_seconds: ${HTTP_TIMEOUT_SECONDS:30}
+    user_agent: "LangTeam/1.0"
+  
+  # Shell tool configuration
+  shell:
+    sandbox_dir: ${SANDBOX_DIR:./sandbox}
+    blocked_patterns:
+      - "rm -rf"
+      - "sudo "
+      - "chmod -R"
+      - "chown -R"
+      - "dd if="
+      - "mkfs"
+      - "> /dev/"
+      - ":(){ :|:& };:"
+      - "mv /* "
+      - "del /f /s /q"
+      - "format "
+  
+  # Git tool configuration
+  git:
+    auto_add: true
+    commit_prefix: "[LangTeam]"
+
+memory:
+  # Enable persistent memory and learning
+  enabled: ${LEARNING_ENABLED:true}
+  
+  # SQLite database path
+  db_path: ${MEMORY_DB_PATH:./memory.db}
+  
+  # Number of past experiences to retrieve for context
+  retrieval_limit: ${MEMORY_RETRIEVAL_LIMIT:5}
+  
+  # Minimum similarity score for memory retrieval (0.0-1.0)
+  similarity_threshold: ${MEMORY_SIMILARITY_THRESHOLD:0.7}
+  
+  # Learning configuration
+  auto_learn_from_failures: ${AUTO_LEARN_FROM_FAILURES:true}
+  store_success_patterns: ${STORE_SUCCESS_PATTERNS:true}
+  
+  # Memory types to enable
+  episodic: true   # Conversation histories
+  semantic: true   # Patterns and best practices
+  procedural: true # Successful workflows
+  error: true      # Failed approaches with fixes
+
+safety:
+  # Redact secrets in logs and output
+  redact_secrets: ${REDACT_SECRETS:true}
+  
+  # Require confirmation for destructive operations
+  require_confirmation: ${REQUIRE_CONFIRMATION:true}
+  
+  # Patterns to redact (case-insensitive)
+  redact_patterns:
+    - "api_key"
+    - "api-key"
+    - "apikey"
+    - "token"
+    - "password"
+    - "secret"
+    - "bearer "
+
+output:
+  # Enable rich formatting (colors, tables, etc.)
+  rich_output: ${RICH_OUTPUT:true}
+  
+  # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  log_level: ${LOG_LEVEL:INFO}
+  
+  # Save detailed logs to file
+  save_logs: ${SAVE_LOGS:false}
+  log_file_path: ${LOG_FILE_PATH:./langteam.log}
+  
+  # Enable LangChain debug tracing
+  langchain_debug: ${LANGCHAIN_DEBUG:false}

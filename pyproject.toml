@@ -1,0 +1,30 @@
+[project]
+name = "langteam"
+version = "1.0.0"
+description = "Multi-agent agile software development team using LangGraph and LangChain"
+requires-python = ">=3.11"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "LangTeam Contributors" }
+]
+keywords = ["langchain", "langgraph", "multi-agent", "agile", "ai", "ollama", "code-llama"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Code Generators",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
+
+[project.urls]
+Homepage = "https://github.com/daz2d/todo-app"
+Repository = "https://github.com/daz2d/todo-app"
+Documentation = "https://github.com/daz2d/todo-app/blob/main/README.md"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

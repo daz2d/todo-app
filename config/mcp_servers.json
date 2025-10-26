@@ -1,0 +1,89 @@
+{
+  "servers": [
+    {
+      "name": "filesystem",
+      "description": "Basic filesystem operations for reading, writing, and listing files",
+      "transport": "stdio",
+      "command": "mcp-server-filesystem",
+      "args": [],
+      "env": {},
+      "config": {
+        "root": ".",
+        "allowed_operations": ["read", "write", "list", "search"]
+      },
+      "enabled": true
+    }
+  ],
+  "_extensibility_notes": {
+    "description": "Add additional MCP servers here to extend LangTeam capabilities",
+    "examples": [
+      {
+        "name": "github",
+        "description": "GitHub API integration for repository operations",
+        "transport": "stdio",
+        "command": "mcp-server-github",
+        "args": ["--repo", "owner/repo"],
+        "env": {
+          "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+        },
+        "config": {
+          "operations": ["issues", "pull_requests", "commits", "branches"]
+        },
+        "enabled": false
+      },
+      {
+        "name": "jira",
+        "description": "Jira integration for issue tracking and project management",
+        "transport": "stdio",
+        "command": "mcp-server-jira",
+        "args": [],
+        "env": {
+          "JIRA_URL": "${JIRA_URL}",
+          "JIRA_USER": "${JIRA_USER}",
+          "JIRA_API_TOKEN": "${JIRA_API_TOKEN}"
+        },
+        "config": {
+          "project_key": "TEAM",
+          "issue_types": ["Story", "Task", "Bug"]
+        },
+        "enabled": false
+      },
+      {
+        "name": "browser",
+        "description": "Browser automation for web scraping and testing",
+        "transport": "stdio",
+        "command": "mcp-server-puppeteer",
+        "args": [],
+        "env": {},
+        "config": {
+          "headless": true,
+          "viewport": {
+            "width": 1920,
+            "height": 1080
+          }
+        },
+        "enabled": false
+      },
+      {
+        "name": "database",
+        "description": "Database operations for SQL queries and data management",
+        "transport": "stdio",
+        "command": "mcp-server-postgres",
+        "args": [],
+        "env": {
+          "DB_HOST": "${DB_HOST}",
+          "DB_PORT": "${DB_PORT}",
+          "DB_NAME": "${DB_NAME}",
+          "DB_USER": "${DB_USER}",
+          "DB_PASSWORD": "${DB_PASSWORD}"
+        },
+        "config": {
+          "max_connections": 10,
+          "read_only": false
+        },
+        "enabled": false
+      }
+    ],
+    "instructions": "To add a new MCP server: 1) Copy an example from above, 2) Set enabled: true, 3) Configure environment variables in .env, 4) Restart LangTeam"
+  }
+}

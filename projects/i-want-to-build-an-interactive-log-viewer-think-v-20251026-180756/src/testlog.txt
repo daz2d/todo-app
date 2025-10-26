@@ -1,0 +1,6 @@
+2025-10-26 17:42:11.123 INFO  [AuthController] - User 'jdoe' successfully logged in from IP 192.168.1.54
+2025-10-26 17:42:11.543 WARN  [OrderService] - Order 45872 took 2.7s to process, exceeding threshold (2s)
+2025-10-26 17:42:12.004 ERROR [PaymentGateway] - Payment failed for OrderID=45872, Reason=Timeout connecting to Stripe API
+2025-10-26 17:42:12.006 DEBUG [RetryHandler] - Retry attempt 1 for Payment Request ID a4f2d93c-200a-4b3c
+2025-10-26 17:42:13.102 INFO  [PaymentGateway] - Payment succeeded on retry for OrderID=45872
+2025-10-26 17:42:15.400 INFO  [SessionManager] - Session expired for user 'mmiller', sessionId=ab7d12fa231b3c4a
