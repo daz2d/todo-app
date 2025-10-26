@@ -52,6 +52,14 @@ def detect_stagnation(state: TeamState, current_output: str, role: str) -> bool:
     
     Returns True if stagnation detected.
     """
+    # Skip stagnation detection if output mentions timeouts or errors
+    if any(phrase in current_output.lower() for phrase in [
+        'timed out', 'timeout', 'command failed', 'error occurred',
+        'connection refused', 'network error', 'permission denied'
+    ]):
+        print(f"🔄 Skipping stagnation check for {role} - detected error/timeout in output")
+        return False
+    
     # Create hash of current output
     current_hash = hashlib.md5(current_output.encode()).hexdigest()
     
@@ -69,7 +77,14 @@ def detect_stagnation(state: TeamState, current_output: str, role: str) -> bool:
     if current_hash == last_hash and last_hash != '':
         state['stagnation_count'] = state.get('stagnation_count', 0) + 1
         print(f"⚠️ {role.title()} output identical to previous turn! Stagnation count: {state['stagnation_count']}")
-        return state['stagnation_count'] >= 2
+        
+        # Be more lenient - allow 3 identical turns before declaring stagnation
+        if state['stagnation_count'] >= 3:
+            print(f"🚫 {role.title()} appears to be stuck - adding context variation")
+            return True
+        else:
+            print(f"🔄 Adding variety to help {role} break out of the pattern...")
+            return False
     else:
         state['stagnation_count'] = 0
         return False

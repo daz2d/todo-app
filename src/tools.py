@@ -330,6 +330,8 @@ def shell(cmd: str) -> str:
         
         shell("sudo apt install nodejs")
         → Installs Node.js on Linux (requires user approval)
+        
+    Note: Setup commands like npm/yarn installs get extended 5-minute timeout.
     """
     global _shell_command_count
     
@@ -363,6 +365,31 @@ def shell(cmd: str) -> str:
             )
     
     try:
+        # Determine timeout based on command type
+        timeout_seconds = 30  # default
+        
+        # Longer timeout for installation and setup commands
+        long_running_patterns = [
+            r'npm\s+create',
+            r'npx\s+create',
+            r'npm\s+install',
+            r'yarn\s+install',
+            r'cargo\s+build',
+            r'mvn\s+install',
+            r'gradle\s+build',
+            r'pip\s+install',
+            r'winget\s+install',
+            r'brew\s+install',
+            r'apt\s+install',
+            r'apt-get\s+install',
+        ]
+        
+        for pattern in long_running_patterns:
+            if re.search(pattern, cmd, re.IGNORECASE):
+                timeout_seconds = 300  # 5 minutes for setup commands
+                print(f"🕐 Extended timeout (5 minutes) for setup command: {cmd[:50]}...")
+                break
+        
         # Execute in current directory (project directory)
         result = subprocess.run(
             cmd,
@@ -370,7 +397,7 @@ def shell(cmd: str) -> str:
             shell=True,
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=timeout_seconds
         )
         
         # Increment counter
@@ -395,7 +422,7 @@ def shell(cmd: str) -> str:
     
     except subprocess.TimeoutExpired:
         _shell_command_count += 1
-        return "❌ Command timed out after 30 seconds"
+        return f"❌ Command timed out after {timeout_seconds} seconds. Try running in smaller steps or check if process needs interaction."
     
     except Exception as e:
         _shell_command_count += 1

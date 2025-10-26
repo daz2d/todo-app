@@ -100,50 +100,136 @@ Task: Update the existing codebase to address the feedback above. Build upon wha
 
 def sanitize_project_name(user_goal: str) -> str:
     """
-    Convert user goal to a clean, user-friendly directory name.
+    Generate an intelligent, descriptive project name from user input.
     
     Args:
-        user_goal: The user's project goal
+        user_goal: The user's project goal description
         
     Returns:
-        Clean project name focusing on key terms
+        Clean, descriptive project name that captures the essence
         
     Examples:
-        >>> sanitize_project_name("Build a TODO app")
-        'todo-app'
-        >>> sanitize_project_name("Create a simple calculator")
-        'calculator'
-        >>> sanitize_project_name("I want to build an interactive log viewer")
-        'log-viewer'
+        >>> sanitize_project_name("Build a TODO app with React")
+        'react-todo-manager'
+        >>> sanitize_project_name("Create a scientific calculator desktop application") 
+        'scientific-calculator-desktop'
+        >>> sanitize_project_name("I want to build an interactive log viewer using Node.js")
+        'nodejs-interactive-log-viewer'
     """
-    # Common words to remove (stop words)
-    stop_words = {
-        'build', 'create', 'make', 'develop', 'write', 'code', 'implement',
-        'a', 'an', 'the', 'some', 'simple', 'basic', 'small', 'quick',
-        'i', 'want', 'to', 'need', 'would', 'like', 'please', 'can', 'you',
-        'app', 'application', 'program', 'tool', 'system', 'project'
+    
+    # Technology keywords that should be included (higher priority)
+    tech_keywords = {
+        'react', 'vue', 'angular', 'svelte', 'nextjs', 'nuxt',
+        'node', 'nodejs', 'express', 'fastify', 'koa',
+        'python', 'flask', 'django', 'fastapi',
+        'rust', 'go', 'java', 'spring', 'kotlin',
+        'typescript', 'javascript', 'js', 'ts',
+        'mobile', 'ios', 'android', 'flutter', 'react-native',
+        'desktop', 'electron', 'tauri', 'web', 'api', 'cli', 'gui'
     }
     
-    # Convert to lowercase and split into words
+    # Domain-specific keywords (medium priority) 
+    domain_keywords = {
+        'todo', 'task', 'note', 'blog', 'chat', 'game', 'quiz', 'poll',
+        'calculator', 'converter', 'parser', 'viewer', 'editor', 'manager',
+        'dashboard', 'analytics', 'monitor', 'tracker', 'logger', 'search',
+        'ecommerce', 'shop', 'cart', 'payment', 'auth', 'login', 'profile',
+        'social', 'messaging', 'notification', 'email', 'calendar', 'schedule'
+    }
+    
+    # Descriptive adjectives (lower priority but useful)
+    descriptors = {
+        'interactive', 'real-time', 'live', 'dynamic', 'responsive',
+        'simple', 'advanced', 'modern', 'smart', 'intelligent',
+        'collaborative', 'social', 'personal', 'professional',
+        'secure', 'fast', 'lightweight', 'powerful', 'elegant'
+    }
+    
+    # Words to completely remove
+    stop_words = {
+        'build', 'create', 'make', 'develop', 'write', 'code', 'implement',
+        'a', 'an', 'the', 'some', 'basic', 'small', 'quick',
+        'i', 'want', 'to', 'need', 'would', 'like', 'please', 'can', 'you',
+        'app', 'application', 'program', 'tool', 'system', 'project', 'using',
+        'with', 'for', 'that', 'this', 'and', 'or', 'but', 'in', 'on', 'at'
+    }
+    
+    # Extract words and normalize
     words = re.findall(r'[a-zA-Z0-9]+', user_goal.lower())
     
-    # Filter out stop words and keep meaningful terms
-    meaningful_words = []
+    # Categorize words by importance
+    tech_words = []
+    domain_words = []
+    descriptor_words = []
+    other_words = []
+    
     for word in words:
-        if word not in stop_words and len(word) > 1:
-            meaningful_words.append(word)
+        if word in stop_words or len(word) <= 1:
+            continue
+        elif word in tech_keywords:
+            tech_words.append(word)
+        elif word in domain_keywords:
+            domain_words.append(word)
+        elif word in descriptors:
+            descriptor_words.append(word)
+        elif len(word) > 2:  # Keep other meaningful words
+            other_words.append(word)
     
-    # If we filtered out everything, fall back to original approach
-    if not meaningful_words:
-        # Take first few words from original
-        words = re.findall(r'[a-zA-Z0-9]+', user_goal.lower())
-        meaningful_words = words[:3]
+    # Build name with prioritization
+    name_parts = []
     
-    # Take at most 3 meaningful words to keep name short
-    name = '-'.join(meaningful_words[:3])
+    # Start with tech stack (most distinctive)  
+    if tech_words:
+        # Special handling and deduplication
+        tech_clean = []
+        for tech in tech_words[:2]:  # Max 2 tech words
+            if tech == 'nodejs':
+                tech_clean.append('node')
+            elif tech == 'nextjs':
+                tech_clean.append('next')
+            elif tech == 'javascript':
+                tech_clean.append('js')
+            elif tech == 'typescript':
+                tech_clean.append('ts')
+            elif tech not in tech_clean:  # Avoid duplicates
+                tech_clean.append(tech)
+        name_parts.extend(tech_clean)
     
-    # Ensure we have something
-    return name if name else 'my-project'
+    # Add domain/purpose words (prioritize the main function)
+    if domain_words:
+        # Put the most important domain word first
+        domain_priority = ['todo', 'calculator', 'game', 'chat', 'dashboard', 'manager', 'viewer', 'editor']
+        sorted_domain = sorted(domain_words, key=lambda x: domain_priority.index(x) if x in domain_priority else len(domain_priority))
+        name_parts.extend(sorted_domain[:2])  # Max 2 domain words
+    
+    # Add descriptors if space allows and they add value
+    if len(name_parts) < 3 and descriptor_words:
+        # Prioritize descriptors that aren't redundant
+        useful_descriptors = [d for d in descriptor_words if d not in ['simple', 'basic']]
+        if useful_descriptors:
+            name_parts.extend(useful_descriptors[:1])
+    
+    # Add other meaningful words if still space
+    if len(name_parts) < 3 and other_words:
+        # Filter out words that are too similar to existing ones
+        unique_others = []
+        for word in other_words:
+            if not any(word in part or part in word for part in name_parts):
+                unique_others.append(word)
+        name_parts.extend(unique_others[:3-len(name_parts)])
+    
+    # Fallback: if still no good words, use first few meaningful words
+    if not name_parts:
+        meaningful = [w for w in words if w not in stop_words and len(w) > 2]
+        name_parts = meaningful[:3] if meaningful else ['my', 'project']
+    
+    # Create final name (max 4 parts to keep reasonable length)
+    final_name = '-'.join(name_parts[:4])
+    
+    # Handle special cases and cleanup
+    final_name = final_name.replace('--', '-').strip('-')
+    
+    return final_name if final_name else 'my-project'
 
 
 def create_project_directory(user_goal: str) -> Path:
@@ -648,6 +734,11 @@ async def run_team_update_mode(modification_instructions: str, project_path: Pat
             )
         
         console.print(f"\n[bold blue]📁 Updated project available at: {project_path}[/bold blue]")
+        
+    except KeyboardInterrupt:
+        console.print(f"\n[yellow]⏹️  Update process interrupted by user[/yellow]")
+        console.print(f"[blue]💾 Progress may have been saved to project files[/blue]")
+        console.print(f"[dim]You can resume by running the update command again[/dim]")
         
     except Exception as e:
         console.print(f"[red]❌ Error during project update: {str(e)}[/red]")
