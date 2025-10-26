@@ -7,6 +7,7 @@ Runs the agile team graph to completion and generates a report.
 import sys
 import os
 import re
+import asyncio
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
@@ -421,6 +422,239 @@ def print_report(state: TeamState, memory: MemorySystem, start_time: datetime):
         )
 
 
+def list_existing_projects():
+    """List all existing projects in the projects directory."""
+    projects_dir = Path("projects")
+    if not projects_dir.exists():
+        console.print("[yellow]📂 No projects directory found![/yellow]")
+        return
+    
+    # Get all project directories
+    project_dirs = [p for p in projects_dir.iterdir() if p.is_dir() and p.name != "__pycache__"]
+    
+    if not project_dirs:
+        console.print("[yellow]📂 No existing projects found![/yellow]")
+        return
+    
+    console.print("\n[bold cyan]🎯 Existing Projects:[/bold cyan]")
+    for i, project_path in enumerate(sorted(project_dirs), 1):
+        # Try to read project metadata
+        spec_file = project_path / "SPEC.md"
+        docs_spec_file = project_path / "docs" / "SPEC.md"
+        readme_file = project_path / "README.md"
+        
+        description = "No description available"
+        
+        # Check for SPEC.md in docs folder first, then root, then README
+        if docs_spec_file.exists():
+            spec_file = docs_spec_file
+        elif not spec_file.exists() and readme_file.exists():
+            spec_file = readme_file
+            
+        if spec_file.exists():
+            try:
+                with open(spec_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    lines = content.split('\n')
+                    # Look for first non-title line as description
+                    for line in lines:
+                        line = line.strip()
+                        if line and not line.startswith('#') and not line.startswith('Project:'):
+                            description = line[:100] + ("..." if len(line) > 100 else "")
+                            break
+            except Exception:
+                pass
+        
+        console.print(f"[green]{i:2d}.[/green] [bold]{project_path.name}[/bold]")
+        console.print(f"     [dim]{description}[/dim]")
+        console.print(f"     [blue]Path:[/blue] {project_path}")
+    
+    console.print(f"\n[bold]Total: {len(project_dirs)} projects[/bold]")
+
+
+def update_existing_project(project_path_str: str, modification_instructions: str):
+    """Update an existing project with new instructions."""
+    from src.memory import get_memory_system
+    
+    project_path = Path(project_path_str)
+    
+    # Validate project path
+    if not project_path.exists():
+        console.print(f"[red]❌ Project path not found: {project_path}[/red]")
+        return
+    
+    if not project_path.is_dir():
+        console.print(f"[red]❌ Path is not a directory: {project_path}[/red]")
+        return
+    
+    # Check if it looks like a valid project
+    spec_file = project_path / "SPEC.md"
+    docs_spec_file = project_path / "docs" / "SPEC.md"
+    readme_file = project_path / "README.md"
+    
+    if not spec_file.exists() and not docs_spec_file.exists() and not readme_file.exists():
+        console.print(f"[red]❌ No SPEC.md or README.md found in project. Are you sure this is a valid project?[/red]")
+        return
+    
+    # Determine which spec file to use for context
+    if docs_spec_file.exists():
+        spec_file = docs_spec_file
+        console.print(f"[green]✓ Found SPEC.md in docs folder[/green]")
+    elif spec_file.exists():
+        console.print(f"[green]✓ Found SPEC.md in root[/green]")
+    else:
+        console.print(f"[yellow]⚠️  No SPEC.md found, using README.md for project context[/yellow]")
+    
+    console.print(f"\n[bold cyan]🔄 Updating Project: {project_path.name}[/bold cyan]")
+    console.print(f"[yellow]📝 Instructions: {modification_instructions}[/yellow]\n")
+    
+    # Load existing project context from memory
+    memory = get_memory_system()
+    project_memories = memory.retrieve(query=f"project {project_path.name}", limit=10)
+    
+    if project_memories:
+        console.print("[blue]🧠 Found existing project memories:[/blue]")
+        for mem in project_memories[:3]:  # Show top 3 relevant memories
+            console.print(f"  • [dim]{mem.content[:80]}...[/dim]")
+    
+    # Create update context including existing project state
+    context_info = f"""
+EXISTING PROJECT UPDATE MODE
+===========================
+Project Path: {project_path}
+Project Name: {project_path.name}
+Update Instructions: {modification_instructions}
+
+This is an UPDATE of an existing project. The team should:
+1. First understand the existing codebase and project structure
+2. Analyze what needs to be modified based on the instructions
+3. Make targeted improvements while preserving existing functionality
+4. Test changes thoroughly to avoid breaking existing features
+5. Update documentation to reflect changes
+
+Previous project context from memory:
+{chr(10).join([f"- {mem.content}" for mem in project_memories[:5]]) if project_memories else "No previous context found"}
+"""
+    
+    # Run the team workflow in update mode
+    asyncio.run(run_team_update_mode(modification_instructions, project_path, context_info))
+
+
+async def run_team_update_mode(modification_instructions: str, project_path: Path, context_info: str):
+    """Run team workflow in update mode for existing project."""
+    from src.graph import create_team_graph
+    from src.memory import get_memory_system
+    
+    try:
+        # Initialize workflow
+        workflow = create_team_graph()
+        memory = get_memory_system()
+        
+        # Create initial state for update mode
+        initial_state = {
+            "user_goal": f"Update existing project: {modification_instructions}",
+            "spec": "",
+            "backend_notes": "",
+            "frontend_notes": "",
+            "review_notes": "",
+            "qa_notes": "",
+            "test_results": "",
+            "approvals": [],
+            "turns": 0,
+            "approved": False,
+            "qa_approved": False,
+            "memories_retrieved": [],
+            "last_backend_hash": "",
+            "last_frontend_hash": "",
+            "stagnation_count": 0,
+            "files_created": [],
+            "messages": [
+                {
+                    "role": "user", 
+                    "content": f"{context_info}\n\nModification Request: {modification_instructions}"
+                }
+            ],
+            "project_name": project_path.name,
+            "project_path": str(project_path),
+            "requirements": modification_instructions,
+            "is_update_mode": True,
+            "existing_project_path": str(project_path),
+            "conversation_history": [],
+            "stagnation_hashes": set(),
+            "variety_context": {},
+            "generated_files": [],
+            "next": "pm"
+        }
+        
+        # Store in memory
+        memory.store(
+            "episodic",
+            f"Project update requested: {modification_instructions}",
+            f"update_{project_path.name}",
+            tags=["project", project_path.name, "update_request"]
+        )
+        
+        console.print("[green]🚀 Team is analyzing existing project and planning updates...[/green]\n")
+        
+        # Run the workflow
+        final_state = None
+        async for event in workflow.astream(initial_state):
+            for node_name, node_output in event.items():
+                if node_name == "END":
+                    final_state = node_output
+                    break
+        
+        if final_state:
+            console.print("\n[bold green]✅ Project update completed![/bold green]")
+            
+            # Ask for feedback on the update
+            console.print("\n[bold cyan]📝 How did the update turn out?[/bold cyan]")
+            console.print("[yellow]Options:[/yellow]")
+            console.print("1. [green]Looks great! ✅[/green]")
+            console.print("2. [yellow]Make some changes 🔧[/yellow]") 
+            console.print("3. [red]Start over 🔄[/red]")
+            
+            choice = input("\nEnter your choice (1-3): ").strip()
+            
+            if choice == "2":
+                feedback = input("What changes would you like? ")
+                console.print(f"\n[blue]🔄 Team is making adjustments: {feedback}[/blue]\n")
+                
+                # Continue with feedback
+                feedback_state = final_state.copy()
+                feedback_state["messages"].append({
+                    "role": "user",
+                    "content": f"User feedback on update: {feedback}. Please make these adjustments."
+                })
+                
+                async for event in workflow.astream(feedback_state):
+                    for node_name, node_output in event.items():
+                        if node_name == "END":
+                            final_state = node_output
+                            break
+                
+                console.print("\n[bold green]✅ Adjustments completed![/bold green]")
+            
+            elif choice == "3":
+                console.print("\n[yellow]🔄 You can run the update again with different instructions.[/yellow]")
+            
+            # Store completion in memory
+            memory.store(
+                "episodic",
+                f"Successfully updated project with: {modification_instructions}",
+                f"update_complete_{project_path.name}",
+                tags=["project", project_path.name, "update_complete"],
+                success=True
+            )
+        
+        console.print(f"\n[bold blue]📁 Updated project available at: {project_path}[/bold blue]")
+        
+    except Exception as e:
+        console.print(f"[red]❌ Error during project update: {str(e)}[/red]")
+        import traceback
+        console.print(f"[red]{traceback.format_exc()}[/red]")
+
+
 def run_team(user_goal: Optional[str] = None):
     """
     Run the agile team workflow.
@@ -592,11 +826,32 @@ def main():
         pass  # dotenv not required, can use system env vars
     
     # Parse command line arguments
-    user_goal = None
-    if len(sys.argv) > 1:
-        user_goal = ' '.join(sys.argv[1:])
+    import argparse
+    parser = argparse.ArgumentParser(description='AI Agile Software Development Team')
+    parser.add_argument('goal', nargs='*', help='Project goal or modification instructions')
+    parser.add_argument('--update', '--modify', metavar='PROJECT_PATH', 
+                       help='Update an existing project instead of creating new one')
+    parser.add_argument('--list-projects', action='store_true',
+                       help='List all existing projects')
     
-    # Run the team
+    args = parser.parse_args()
+    
+    # Handle list projects
+    if args.list_projects:
+        list_existing_projects()
+        return
+    
+    # Handle update mode
+    if args.update:
+        if not args.goal:
+            console.print("[red]❌ Update mode requires modification instructions![/red]")
+            console.print("[yellow]Usage: python -m src.run_team --update PROJECT_PATH 'add error handling and unit tests'[/yellow]")
+            return
+        update_existing_project(args.update, ' '.join(args.goal))
+        return
+    
+    # Handle regular mode
+    user_goal = ' '.join(args.goal) if args.goal else None
     run_team(user_goal)
 
 

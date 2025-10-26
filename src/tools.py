@@ -27,18 +27,35 @@ REDACT_SECRETS = os.getenv('REDACT_SECRETS', 'true').lower() == 'true'
 # Blocked shell patterns (safety)
 BLOCKED_PATTERNS = [
     r'rm\s+-rf',
-    r'sudo\s+',
-    r'su\s+',
     r'chmod\s+-R',
-    r'chown\s+-R',
+    r'chown\s+-R', 
     r'dd\s+if=',
     r'mkfs',
     r'>/dev/',
     r':\(\)\{',  # Fork bomb
     r'del\s+/f\s+/s\s+/q',
     r'format\s+',
+]
+
+# Patterns that require user approval (system-level operations)
+APPROVAL_REQUIRED_PATTERNS = [
+    r'sudo\s+',
+    r'su\s+',
     r'systemctl',
     r'service\s+',
+    r'apt\s+install',
+    r'apt-get\s+install',
+    r'yum\s+install',
+    r'dnf\s+install',
+    r'brew\s+install',
+    r'choco\s+install',
+    r'winget\s+install',
+    r'scoop\s+install',
+    r'curl.*\|\s*sh',
+    r'wget.*\|\s*sh',
+    r'powershell.*Set-ExecutionPolicy',
+    r'npm\s+install\s+-g',
+    r'pip\s+install.*--user',
 ]
 
 # Secret patterns for redaction
@@ -80,6 +97,23 @@ def redact_secrets(text: str) -> str:
     return result
 
 
+def requires_approval(command: str) -> tuple[bool, Optional[str]]:
+    """
+    Check if shell command requires user approval.
+    
+    Args:
+        command: Shell command to validate.
+    
+    Returns:
+        Tuple of (requires_approval, reason). If approval needed, reason explains why.
+    """
+    for pattern in APPROVAL_REQUIRED_PATTERNS:
+        if re.search(pattern, command, re.IGNORECASE):
+            return True, f"System-level operation detected: '{pattern}'"
+    
+    return False, None
+
+
 def is_command_blocked(command: str) -> tuple[bool, Optional[str]]:
     """
     Check if shell command matches blocked patterns.
@@ -95,6 +129,46 @@ def is_command_blocked(command: str) -> tuple[bool, Optional[str]]:
             return True, f"Blocked pattern detected: '{pattern}'"
     
     return False, None
+
+
+def get_user_approval(command: str, reason: str) -> bool:
+    """
+    Request user approval for potentially dangerous command.
+    
+    Args:
+        command: The command requesting approval.
+        reason: Why approval is needed.
+    
+    Returns:
+        True if user approves, False otherwise.
+    """
+    print(f"\n🚨 SYSTEM INSTALLATION REQUEST 🚨")
+    print(f"Agent wants to run: {command}")
+    print(f"Reason: {reason}")
+    print(f"⚠️  This requires system-level permissions and may modify your system.")
+    
+    while True:
+        response = input("\nDo you approve this command? (y/n/details): ").strip().lower()
+        
+        if response in ['y', 'yes']:
+            print("✅ Command approved by user.")
+            return True
+        elif response in ['n', 'no']:
+            print("❌ Command rejected by user.")
+            return False
+        elif response in ['d', 'details']:
+            print("\n📋 COMMAND DETAILS:")
+            print(f"Full command: {command}")
+            print(f"Detection reason: {reason}")
+            print("This command was flagged because it may:")
+            print("• Install system-level software")
+            print("• Modify system configuration")  
+            print("• Require administrator privileges")
+            print("• Change global settings")
+            continue
+        else:
+            print("Please enter 'y' (yes), 'n' (no), or 'details' for more information.")
+            continue
 
 
 # HTTP Tools
@@ -239,11 +313,23 @@ def shell(cmd: str) -> str:
         - 30-second timeout per command
     
     Examples:
-        shell("python src/main.py")
-        → Runs the application
+        shell("npm init -y")
+        → Initializes Node.js project
         
-        shell("pytest tests/")
-        → Runs tests
+        shell("npm create react-app my-app")
+        → Creates React application
+        
+        shell("python src/main.py")
+        → Runs Python application
+        
+        shell("cargo build")
+        → Builds Rust project
+        
+        shell("winget install OpenJS.NodeJS")
+        → Installs Node.js (requires user approval)
+        
+        shell("sudo apt install nodejs")
+        → Installs Node.js on Linux (requires user approval)
     """
     global _shell_command_count
     
@@ -265,6 +351,16 @@ def shell(cmd: str) -> str:
             f"Command: {cmd}\n"
             f"Review prompts/policies/safety.md for allowed patterns."
         )
+    
+    # Check if approval required
+    needs_approval, approval_reason = requires_approval(cmd)
+    if needs_approval:
+        if not get_user_approval(cmd, approval_reason):
+            return (
+                f"❌ Command rejected by user: {approval_reason}\n"
+                f"Command: {cmd}\n"
+                f"User did not approve this system-level operation."
+            )
     
     try:
         # Execute in current directory (project directory)
