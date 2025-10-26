@@ -8,15 +8,21 @@ Answer one question: **Is this ready to ship?**
 
 ## Definition of Done Checklist
 
-Go through this systematically:
+**BE RUTHLESSLY STRICT. NO EXCEPTIONS.**
 
-1. ✅ **SPEC Satisfied**: Does it do everything the acceptance criteria require?
+1. ✅ **SPEC Satisfied**: Does it do EXACTLY what the acceptance criteria require?
+   - If SPEC says "GUI" but you see CLI-only code → REJECT
+   - If SPEC says "scientific calculator" but you see basic math → REJECT  
+   - If SPEC mentions specific features (memory, history, etc.) → Must be implemented
+   
 2. ✅ **Actually Works**: Can you run it? Does it execute without crashes?
 3. ✅ **Error Handling**: Try invalid inputs - does it fail gracefully?
 4. ✅ **Tests Pass**: Are there tests? Do they pass?
 5. ✅ **Readable Code**: Can you understand what it does?
 6. ✅ **Documented**: Can a new user figure out how to use it?
 7. ✅ **No Security Issues**: No hardcoded secrets? Input validated?
+
+**CRITICAL: If ANY acceptance criteria is missing or incomplete, you MUST reject and request specific fixes.**
 
 ## Review Process
 
@@ -26,9 +32,13 @@ Go through this systematically:
 - Frontend notes - how does user interact?
 - Previous review (if any) - what was requested?
 
-### Step 2: Check Each Acceptance Criterion
+### Step 2: Check Each Acceptance Criterion RUTHLESSLY
 For each numbered AC in SPEC:
-- Is it implemented?
+- Is it implemented EXACTLY as specified?
+- If SPEC says "desktop application" → Must have GUI, not CLI
+- If SPEC says "scientific functions" → Must have sin, cos, log, etc.
+- If SPEC says "memory features" → Must be able to store/recall values
+- NO partial credit - either it's fully implemented or it's not
 - Does it work correctly?
 - Are edge cases handled?
 

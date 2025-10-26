@@ -184,6 +184,9 @@ FRONTEND NOTES:
 REVIEW FEEDBACK:
 {state['review_notes'] if state['review_notes'] else '[No review yet]'}
 
+QA TESTING NOTES:
+{state['qa_notes'] if state['qa_notes'] else '[No QA testing yet]'}
+
 PAST EXPERIENCES:
 {past_context}
 
@@ -788,9 +791,20 @@ def qa_tester_node(state: TeamState) -> TeamState:
 📋 CODE REVIEW FEEDBACK:
 {state.get('review_notes', 'No review notes available')}
 
-🎯 YOUR MISSION:
-Create comprehensive tests that verify every acceptance criteria in the SPEC is met.
-Write tests, execute them, and report results. Be thorough and critical.
+🎯 YOUR MISSION (CASEY'S COMPREHENSIVE TESTING):
+1. 📋 ANALYZE: Map each SPEC acceptance criteria to specific test cases
+2. 🤝 COLLABORATE: In your output, explicitly show Alex (PM) your test coverage plan
+3. 🧪 EXECUTE: Write and run tests for each requirement  
+4. 📊 REPORT: Show pass/fail for every SPEC requirement + PM validation confirmation
+
+💡 COLLABORATION FORMAT:
+"Hey Alex! Here's my test plan - did I miss any of your requirements?
+- AC1 (Calculator functions): Testing add/sub/mult/div ✅
+- AC2 (Error handling): Testing invalid inputs ✅  
+- AC3 (GUI interface): Testing button clicks and display ✅
+Alex, does this cover everything from your SPEC?"
+
+Only approve if ALL requirements tested AND you've shown PM your coverage plan!
 """
     
     # Get QA model (use smart model for testing work)
@@ -817,8 +831,15 @@ Write tests, execute them, and report results. Be thorough and critical.
     
     print(qa_output)
     
+    # Check if QA has comprehensive test coverage (PM validation)
+    pm_validation_needed = not any([
+        "pm validation" in qa_output.lower(),
+        "alex approved" in qa_output.lower(),
+        "pm reviewed" in qa_output.lower()
+    ])
+    
     # Simple approval heuristic for QA (look for test pass indicators)
-    qa_approved = any([
+    qa_tests_pass = any([
         "all tests pass" in qa_output.lower(),
         "✅" in qa_output and "test" in qa_output.lower(),
         "requirements met" in qa_output.lower(),
@@ -826,12 +847,16 @@ Write tests, execute them, and report results. Be thorough and critical.
         "quality approved" in qa_output.lower()
     ])
     
-    state['qa_approved'] = qa_approved
+    # QA is only fully approved if tests pass AND PM validated test coverage
+    state['qa_approved'] = qa_tests_pass and not pm_validation_needed
     
-    if qa_approved:
-        print("\n🎉 BOOM! Casey's seal of approval - all tests passed! Jamie and Riley, you didn't disappoint! 🥳")
-        approval_msg = f"Casey (Turn {state['turns']}): Holy cow, everything works! 🧪✅ You two actually built something that doesn't break! 😱"
+    if qa_tests_pass and not pm_validation_needed:
+        print("\n🎉 BOOM! Casey's tests passed AND Alex validated the test coverage! Perfect! 🥳")
+        approval_msg = f"Casey (Turn {state['turns']}): Tests pass + PM validation ✅🧪 Everything works and Alex confirmed I tested the right stuff! 😱"
         state['approvals'].append(approval_msg)
+    elif qa_tests_pass and pm_validation_needed:
+        print("\n⚠️ Casey's tests passed, but Alex hasn't validated if the test plan covers all requirements! 📋")
+        print("🔄 Need Alex to review: Did Casey test everything from the SPEC?")
     else:
         print("\n💥 Uh oh... Casey found some issues! Time for round 2, team! 🔧")
     
