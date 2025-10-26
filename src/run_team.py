@@ -99,32 +99,50 @@ Task: Update the existing codebase to address the feedback above. Build upon wha
 
 def sanitize_project_name(user_goal: str) -> str:
     """
-    Convert user goal to a safe directory name.
+    Convert user goal to a clean, user-friendly directory name.
     
     Args:
         user_goal: The user's project goal
         
     Returns:
-        Safe directory name (lowercase, alphanumeric, hyphens)
+        Clean project name focusing on key terms
         
     Examples:
         >>> sanitize_project_name("Build a TODO app")
-        'build-a-todo-app'
-        >>> sanitize_project_name("Create GUI Log Viewer!")
-        'create-gui-log-viewer'
+        'todo-app'
+        >>> sanitize_project_name("Create a simple calculator")
+        'calculator'
+        >>> sanitize_project_name("I want to build an interactive log viewer")
+        'log-viewer'
     """
-    # Take first 50 chars
-    name = user_goal[:50]
-    # Convert to lowercase
-    name = name.lower()
-    # Replace spaces and special chars with hyphens
-    name = re.sub(r'[^a-z0-9]+', '-', name)
-    # Remove leading/trailing hyphens
-    name = name.strip('-')
-    # Collapse multiple hyphens
-    name = re.sub(r'-+', '-', name)
+    # Common words to remove (stop words)
+    stop_words = {
+        'build', 'create', 'make', 'develop', 'write', 'code', 'implement',
+        'a', 'an', 'the', 'some', 'simple', 'basic', 'small', 'quick',
+        'i', 'want', 'to', 'need', 'would', 'like', 'please', 'can', 'you',
+        'app', 'application', 'program', 'tool', 'system', 'project'
+    }
     
-    return name or 'project'
+    # Convert to lowercase and split into words
+    words = re.findall(r'[a-zA-Z0-9]+', user_goal.lower())
+    
+    # Filter out stop words and keep meaningful terms
+    meaningful_words = []
+    for word in words:
+        if word not in stop_words and len(word) > 1:
+            meaningful_words.append(word)
+    
+    # If we filtered out everything, fall back to original approach
+    if not meaningful_words:
+        # Take first few words from original
+        words = re.findall(r'[a-zA-Z0-9]+', user_goal.lower())
+        meaningful_words = words[:3]
+    
+    # Take at most 3 meaningful words to keep name short
+    name = '-'.join(meaningful_words[:3])
+    
+    # Ensure we have something
+    return name if name else 'my-project'
 
 
 def create_project_directory(user_goal: str) -> Path:
@@ -148,8 +166,19 @@ def create_project_directory(user_goal: str) -> Path:
     
     # Generate project directory name
     base_name = sanitize_project_name(user_goal)
-    timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
-    project_name = f"{base_name}-{timestamp}"
+    
+    # Try clean name first, add counter if needed
+    project_name = base_name
+    counter = 1
+    
+    while (projects_root / project_name).exists():
+        project_name = f"{base_name}-{counter}"
+        counter += 1
+        # Safety valve - if we get to 100, add timestamp
+        if counter > 100:
+            timestamp = datetime.now().strftime('%m%d-%H%M')
+            project_name = f"{base_name}-{timestamp}"
+            break
     
     # Create project directory
     project_dir = projects_root / project_name
@@ -194,14 +223,14 @@ See the SPEC.md file (if generated) for acceptance criteria and requirements.
 def print_banner():
     """Print application banner."""
     banner = """
-╔══════════════════════════════════════════════════════════╗
-║                                                          ║
-║    🤖  LANGTEAM - AI AGILE SOFTWARE DEVELOPMENT TEAM    ║
-║                                                          ║
-║    Multi-agent system powered by LangGraph              ║
-║    Roles: PM | Backend | Frontend | Reviewer | QA       ║
-║                                                          ║
-╚══════════════════════════════════════════════════════════╝
+╔══════════════════════════════════════════════════════════════════════╗
+║                                                                      ║
+║  🎓 THE COLLEGE CREW - 20 YEARS OF FRIENDSHIP & CODE 🎓              ║
+║                                                                      ║
+║  👥 Alex (PM) | Jamie (Backend) | Riley (Frontend) | Morgan (Review) ║
+║       Casey (QA) - Best friends who love to roast each other! 😂    ║
+║                                                                      ║
+╚══════════════════════════════════════════════════════════════════════╝
 """
     console.print(banner, style="bold cyan")
 

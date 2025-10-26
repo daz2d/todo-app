@@ -16,6 +16,7 @@ from .llm import get_chat_model, get_smart_model
 from .tools import get_enabled_tools, reset_turn_counters, SANDBOX_DIR
 from .roles import RolePrompts
 from .memory import MemorySystem
+import hashlib
 
 
 # Team State Definition
@@ -33,10 +34,73 @@ class TeamState(TypedDict):
     approved: bool
     qa_approved: bool
     memories_retrieved: List[str]  # Relevant past experiences
+    
+    # Progress tracking to prevent loops
+    last_backend_hash: str  # Hash of last backend output
+    last_frontend_hash: str  # Hash of last frontend output
+    stagnation_count: int  # Consecutive turns without progress
+    files_created: List[str]  # Track which files have been created
 
 
 # Configuration
 MAX_TURNS = int(os.getenv('MAX_TURNS', '10'))
+
+
+def detect_stagnation(state: TeamState, current_output: str, role: str) -> bool:
+    """
+    Detect if the agent is stuck in a loop or not making progress.
+    
+    Returns True if stagnation detected.
+    """
+    # Create hash of current output
+    current_hash = hashlib.md5(current_output.encode()).hexdigest()
+    
+    # Check if this is the same as last time for this role
+    if role == 'backend':
+        last_hash = state.get('last_backend_hash', '')
+        state['last_backend_hash'] = current_hash
+    elif role == 'frontend':
+        last_hash = state.get('last_frontend_hash', '') 
+        state['last_frontend_hash'] = current_hash
+    else:
+        return False
+    
+    # If output is identical to last time, increment stagnation
+    if current_hash == last_hash and last_hash != '':
+        state['stagnation_count'] = state.get('stagnation_count', 0) + 1
+        print(f"⚠️ {role.title()} output identical to previous turn! Stagnation count: {state['stagnation_count']}")
+        return state['stagnation_count'] >= 2
+    else:
+        state['stagnation_count'] = 0
+        return False
+
+
+def add_variety_context(state: TeamState, role: str) -> str:
+    """
+    Add dynamic context to make conversations more varied and prevent loops.
+    """
+    variety_prompts = {
+        'backend': [
+            "🔥 Jamie, Alex is expecting some serious backend magic this turn! Show off those algorithms!",
+            "💪 Time to flex those backend muscles, Jamie! Riley is counting on you for solid APIs!",
+            "🚀 Jamie, let's build something that'll make our college professors proud!",
+            "⚡ Backend time! Jamie, remember that time you debugged that impossible recursive function? Channel that energy!",
+            "🎯 Jamie, focus mode engaged! Let's write some clean, testable backend code!"
+        ],
+        'frontend': [
+            "✨ Riley, time to make this interface absolutely gorgeous! Show Jamie how UI magic is done!",
+            "🎨 Riley, channel your inner artist! Make this so pretty that even Morgan can't find fault with it!",
+            "💫 Frontend wizardry time! Riley, let's create something users will actually enjoy using!",
+            "🌟 Riley, remember our design class? Time to put those principles to work!",
+            "🎭 Riley, make this interface so intuitive that even Casey's destructive testing can't break it!"
+        ]
+    }
+    
+    import random
+    prompts = variety_prompts.get(role, [])
+    if prompts and state.get('turns', 0) > 1:
+        return f"\n🗣️ **Team Motivation**: {random.choice(prompts)}\n"
+    return ""
 
 
 # Agent Node Functions
@@ -51,7 +115,9 @@ def pm_node(state: TeamState) -> TeamState:
     - Break down work into tasks for engineers
     - Incorporate review feedback
     """
-    print(f"\n{'='*60}\n  PM (Turn {state['turns'] + 1})\n{'='*60}")
+    print(f"\n🎯{'='*58}🎯")
+    print(f"  📋 PM ALEX IS ON THE CASE (Turn {state['turns'] + 1}) 📋")
+    print(f"🎯{'='*58}🎯")
     
     # Reset turn counters for tools
     reset_turn_counters()
@@ -204,21 +270,23 @@ def backend_node(state: TeamState) -> TeamState:
     - Use tools (shell, http, git) as needed
     - Document implementation and next steps
     """
-    print(f"\n{'='*60}\n  BACKEND ENGINEER (Turn {state['turns']})\n{'='*60}")
+    print(f"\n🔧{'='*58}🔧")
+    print(f"  💻 BACKEND JAMIE REPORTING FOR DUTY (Turn {state['turns']}) 💻")
+    print(f"🔧{'='*58}🔧")
     
     # VALIDATION: Ensure SPEC exists before proceeding
     if not state.get('spec') or len(state['spec'].strip()) < 20:
-        print("❌ ERROR: No valid SPEC found!")
-        print("Backend engineer cannot proceed without PM specification.")
-        print("Requesting PM to create detailed SPEC first...")
+        print("🤦‍♂️ Yo Alex, where's my SPEC dude?!")
+        print("🍺 Can't code without knowing what I'm building - you know this!")
+        print("☕ Go grab a coffee and write me something to work with 😄")
         
         # Store error and request PM intervention
-        error_msg = f"Backend engineer blocked: No SPEC available on turn {state['turns']}. PM must create specification before backend work can begin."
+        error_msg = f"Jamie to Alex: Dude, seriously? Turn {state['turns']} and still no SPEC? 😂 Get your act together buddy! I need requirements to build this thing properly. You've got this! 💪"
         state['backend_notes'] = error_msg
         print(error_msg)
         return state
     
-    print(f"✓ SPEC validation passed ({len(state['spec'])} characters)")
+    print(f"🎉 Sweet! Alex came through with a solid SPEC ({len(state['spec'])} chars) - let's build this thing! 🚀")
     
     reset_turn_counters()
     
@@ -247,33 +315,32 @@ def backend_node(state: TeamState) -> TeamState:
     #     past_context += "\n\nPAST MISTAKES TO AVOID:\n" + "\n---\n".join([e.content for e in errors])
     
     context = f"""
-🎯 PROJECT SPECIFICATION (THIS IS YOUR PRIMARY REQUIREMENT):
+🎯 ALEX'S REQUIREMENTS (The Gospel According to PM):
 ==========================================
 {state['spec']}
 ==========================================
 
-❗ CRITICAL: You must implement EXACTLY what is specified above. 
-Do not build generic applications or assume different requirements.
-Follow the acceptance criteria and tasks precisely.
+💪 Jamie's Mission: Build EXACTLY what Alex specified above (no creative liberties this time! 😄)
 
-PREVIOUS BACKEND WORK:
-{state['backend_notes'] if state['backend_notes'] else '[No previous backend work]'}
+💻 MY PREVIOUS BACKEND WORK:
+{state['backend_notes'] if state['backend_notes'] else '[Clean slate - time to build something awesome! 🚀]'}
 
-FRONTEND WORK SO FAR:
-{state['frontend_notes'] if state['frontend_notes'] else '[No frontend work yet]'}
+🎨 RILEY'S FRONTEND ADVENTURES:
+{state['frontend_notes'] if state['frontend_notes'] else '[Riley is probably still choosing the perfect color scheme 🎭]'}
 
-REVIEW FEEDBACK:
-{state['review_notes'] if state['review_notes'] else '[No review yet]'}
+🔍 MORGAN'S BRUTALLY HONEST FEEDBACK:
+{state['review_notes'] if state['review_notes'] else '[Morgan hasn\'t shredded my code yet - I must be doing something right! 😅]'}
 
 {past_context}
 
-TURN: {state['turns']} of {MAX_TURNS}
+🏃‍♂️ TURN {state['turns']} of {MAX_TURNS} - Let's make magic happen!
 
-Your task:
-1. Review SPEC acceptance criteria
-2. Design/implement backend slice for this turn
-3. Use tools as needed (shell, git, http)
-4. Document what you built and next steps
+Jamie's Epic To-Do List:
+1. 📖 Read Alex's SPEC like it's the holy scripture
+2. 🔧 Build backend logic that would make my professors proud  
+3. 🧪 Write tests so Casey doesn't find bugs to mock me about
+4. 📝 Document everything so Riley can work their frontend magic
+5. 🎯 Stay focused (no rabbit holes this time!)
 
 Output your implementation notes, architecture decisions, and deliverables.
 """
@@ -353,19 +420,22 @@ def frontend_node(state: TeamState) -> TeamState:
     - Focus on usability and polish
     - Document usage and examples
     """
-    print(f"\n{'='*60}\n  FRONTEND ENGINEER (Turn {state['turns']})\n{'='*60}")
+    print(f"\n🎨{'='*58}🎨")
+    print(f"  ✨ FRONTEND RILEY MAKING IT PRETTY (Turn {state['turns']}) ✨")
+    print(f"🎨{'='*58}🎨")
     
     # VALIDATION: Ensure SPEC exists before proceeding
     if not state.get('spec') or len(state['spec'].strip()) < 20:
-        print("❌ ERROR: No valid SPEC found!")
-        print("Frontend engineer cannot proceed without PM specification.")
+        print("🤷‍♀️ Alex, sweetie, where's my SPEC? I can't make magic without knowing what we're building!")
+        print("💅 You know I need those requirements to make this thing user-friendly!")
+        print("🎭 Come on, give me something to work with - make it snappy! 😉")
         
-        error_msg = f"Frontend engineer blocked: No SPEC available on turn {state['turns']}. PM must create specification before frontend work can begin."
+        error_msg = f"Riley to Alex: Babe, it's turn {state['turns']} and I'm still waiting for a SPEC! 😅 You know I can't build a gorgeous UI without knowing what it should DO! Help a girl out here! 💖"
         state['frontend_notes'] = error_msg
         print(error_msg)
         return state
     
-    print(f"✓ SPEC validation passed ({len(state['spec'])} characters)")
+    print(f"🌟 Perfect! Alex delivered the goods - {len(state['spec'])} chars of pure requirements gold! Time to make this beautiful! 💎")
     
     reset_turn_counters()
     
@@ -386,32 +456,32 @@ def frontend_node(state: TeamState) -> TeamState:
     #     past_context = "\n\nSUCCESSFUL UI PATTERNS:\n" + "\n---\n".join([p.content for p in patterns])
     
     context = f"""
-🎯 PROJECT SPECIFICATION (THIS IS YOUR PRIMARY REQUIREMENT):
+✨ ALEX'S VISION (Time to Make It Pretty!):
 ==========================================
 {state['spec']}
 ==========================================
 
-❗ CRITICAL: You must implement UI/UX EXACTLY for what is specified above. 
-Do not build generic interfaces or assume different requirements.
-Follow the acceptance criteria and tasks precisely.
+🎨 Riley's Mission: Make this UI so gorgeous Alex cries happy tears! (But follow the SPEC exactly 😉)
 
-BACKEND IMPLEMENTATION:
-{state['backend_notes'] if state['backend_notes'] else '[No backend work yet]'}
+🔧 JAMIE'S BACKEND MASTERPIECE:
+{state['backend_notes'] if state['backend_notes'] else '[Jamie is probably still caffeinating before coding 🚀]'}
 
-PREVIOUS FRONTEND WORK:
-{state['frontend_notes'] if state['frontend_notes'] else '[No previous frontend work]'}
+💅 MY PREVIOUS FRONTEND WORK:
+{state['frontend_notes'] if state['frontend_notes'] else '[Fresh canvas - time to paint something beautiful! 🎨]'}
 
-REVIEW FEEDBACK:
-{state['review_notes'] if state['review_notes'] else '[No review yet]'}
+🔍 MORGAN'S DESIGN CRITIQUE:
+{state['review_notes'] if state['review_notes'] else '[Morgan hasn\'t judged my UI choices yet - fingers crossed! 🤞]'}
 
 {past_context}
 
-TURN: {state['turns']} of {MAX_TURNS}
+⚡ TURN {state['turns']} of {MAX_TURNS} - Let's make this interface sing!
 
-Your task:
-1. Review SPEC acceptance criteria for UI/UX requirements
-2. Build frontend/interface slice for this turn
-3. Wire with backend components
+Riley's Fabulous Checklist:
+1. 📖 Study Alex's SPEC like it's the latest fashion magazine
+2. 🔌 Connect to Jamie's brilliant backend work (they better have documented it!)
+3. ✨ Create an interface so intuitive even our professors could use it
+4. 🧪 Write some UI tests so Casey can't complain about broken buttons
+5. 💫 Add that special Riley touch (but stay within SPEC bounds!)
 4. Use tools as needed (shell, git, http)
 5. Focus on user experience and clear error messages
 
@@ -492,17 +562,19 @@ def reviewer_node(state: TeamState) -> TeamState:
     - Approve (include "APPROVED") or request changes
     - Provide explicit, actionable feedback
     """
-    print(f"\n{'='*60}\n  CODE REVIEWER (Turn {state['turns']})\n{'='*60}")
+    print(f"\n🔍{'='*58}🔍")
+    print(f"  🕵️ CODE REVIEWER MORGAN ON THE HUNT (Turn {state['turns']}) 🕵️")
+    print(f"🔍{'='*58}🔍")
     
     # VALIDATION: Ensure SPEC exists for proper review
     if not state.get('spec') or len(state['spec'].strip()) < 20:
-        print("❌ ERROR: Cannot conduct proper review without detailed SPEC!")
-        error_msg = f"Code reviewer cannot validate deliverables against requirements without PM specification. Turn {state['turns']}"
+        print("🤨 Hold up team! Can't review code against thin air - Alex, where's that SPEC?!")
+        error_msg = f"Morgan to Alex: Buddy, turn {state['turns']} and I still don't have a proper SPEC to review against! 😤 You know I can't do my job without knowing what we're supposed to be building! Get me those requirements! 📋"
         state['review_notes'] = error_msg
         print(error_msg)
         return state
     
-    print(f"✓ SPEC validation passed for review ({len(state['spec'])} characters)")
+    print(f"🎯 Excellent! Got {len(state['spec'])} chars of solid requirements - time to see what Jamie and Riley built! 🔎")
     
     reset_turn_counters()
     
@@ -630,21 +702,24 @@ def qa_tester_node(state: TeamState) -> TeamState:
     - Report test results and coverage
     - Identify any gaps between implementation and requirements
     """
-    print(f"\n{'='*60}\n  QA TESTER (Turn {state['turns']})\n{'='*60}")
+    print(f"\n🧪{'='*58}🧪")
+    print(f"  🔬 QA TESTER CASEY BREAKING THINGS (Turn {state['turns']}) 🔬")
+    print(f"🧪{'='*58}🧪")
     
     # VALIDATION: Ensure SPEC exists before testing
     if not state.get('spec') or len(state['spec'].strip()) < 20:
-        print("❌ ERROR: No valid SPEC found!")
-        print("QA Tester cannot create tests without PM specification.")
+        print("🤦‍♂️ Oh come ON Alex! How am I supposed to test this thing without a SPEC?!")
+        print("🧪 I can't break what doesn't have requirements! Give me something to validate against!")
+        print("💥 You know I live to find bugs, but I need to know what's supposed to work first! 😂")
         
-        error_msg = f"QA Tester blocked: No SPEC available on turn {state['turns']}. PM must create specification before testing can begin."
+        error_msg = f"Casey to Alex: Dude, it's turn {state['turns']} and I'm sitting here with my testing hat on and NO SPEC! 🤪 I can't write tests to verify requirements if there ARE no requirements! Help me help you! 🧪💪"
         state['qa_notes'] = error_msg
-        state['test_results'] = "BLOCKED: No specification available"
+        state['test_results'] = "BLOCKED: Casey can't test without requirements (come on Alex!) 😅"
         state['qa_approved'] = False
         print(error_msg)
         return state
     
-    print(f"✓ SPEC validation passed ({len(state['spec'])} characters)")
+    print(f"🎯 Sweet! Alex came through with {len(state['spec'])} chars of testable requirements! Time to see if Jamie and Riley's code can survive my tests! 😈")
     
     reset_turn_counters()
     
@@ -708,11 +783,11 @@ Write tests, execute them, and report results. Be thorough and critical.
     state['qa_approved'] = qa_approved
     
     if qa_approved:
-        print("\n🎉 QA APPROVED - All tests passed!")
-        approval_msg = f"QA Tester (Turn {state['turns']}): Tests pass, requirements verified"
+        print("\n🎉 BOOM! Casey's seal of approval - all tests passed! Jamie and Riley, you didn't disappoint! 🥳")
+        approval_msg = f"Casey (Turn {state['turns']}): Holy cow, everything works! 🧪✅ You two actually built something that doesn't break! 😱"
         state['approvals'].append(approval_msg)
     else:
-        print("\n⚠️ QA CONCERNS - Issues found in testing")
+        print("\n💥 Uh oh... Casey found some issues! Time for round 2, team! 🔧")
     
     # Store QA results
     if state['qa_notes']:
@@ -754,22 +829,24 @@ def should_continue(state: TeamState) -> str:
     """
     # Require both code review approval AND QA approval
     if state['approved'] and state.get('qa_approved', False):
-        print(f"\n✅ PROJECT FULLY APPROVED - Code Review ✓ and QA Testing ✓")
+        print(f"\n🎉🎊 BOOM! BOTH MORGAN AND CASEY SIGNED OFF! 🎊🎉")
+        print(f"🍻 Time to celebrate - this baby is SHIPPED! Great work team! 🚀")
         return 'end'
     
     if state['turns'] >= MAX_TURNS:
-        print(f"\n⚠️  MAX_TURNS ({MAX_TURNS}) reached without full approval")
-        print(f"Code Review: {'✅' if state['approved'] else '❌'}")
-        print(f"QA Testing: {'✅' if state.get('qa_approved', False) else '❌'}")
+        print(f"\n⏰ Alright team, we've hit the {MAX_TURNS} turn limit - time to wrap this up!")
+        print(f"📋 Morgan's Review: {'✅ Approved!' if state['approved'] else '❌ Still needs work'}")
+        print(f"🧪 Casey's Tests: {'✅ All passed!' if state.get('qa_approved', False) else '❌ Found issues'}")
+        print(f"☕ Maybe grab some coffee and tackle the remaining issues next sprint? 😅")
         return 'end'
     
     # Show current approval status
     if state['approved'] and not state.get('qa_approved', False):
-        print(f"\n📋 Code Review ✅ approved, waiting for QA Testing...")
+        print(f"\n🎯 Morgan approved the code! Waiting on Casey to finish testing... 🧪⏳")
     elif not state['approved'] and state.get('qa_approved', False):
-        print(f"\n📋 QA Testing ✅ approved, waiting for Code Review...")
+        print(f"\n🧪 Casey's tests all passed! Waiting on Morgan's code review... 🔍⏳")
     else:
-        print(f"\n📋 Waiting for approvals - Code Review: ❌, QA Testing: ❌")
+        print(f"\n� Round {state['turns']} in the books - both Morgan and Casey want another iteration! Let's make it even better! 💪")
     
     return 'continue'
 
