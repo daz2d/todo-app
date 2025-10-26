@@ -476,7 +476,12 @@ def run_team(user_goal: Optional[str] = None):
         'turns': 0,
         'approved': False,
         'qa_approved': False,
-        'memories_retrieved': []
+        'memories_retrieved': [],
+        # Progress tracking
+        'last_backend_hash': '',
+        'last_frontend_hash': '',
+        'stagnation_count': 0,
+        'files_created': []
     }
     
     # Build and run graph
@@ -505,6 +510,9 @@ def run_team(user_goal: Optional[str] = None):
             iteration_state['turns'] = 0  # Reset turns for new iteration
             iteration_state['approved'] = False  # Reset approvals for new iteration
             iteration_state['qa_approved'] = False
+            iteration_state['stagnation_count'] = 0  # Reset progress tracking
+            iteration_state['last_backend_hash'] = ''
+            iteration_state['last_frontend_hash'] = ''
             
             # Run the graph
             final_state = graph.invoke(iteration_state)

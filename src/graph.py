@@ -75,6 +75,32 @@ def detect_stagnation(state: TeamState, current_output: str, role: str) -> bool:
         return False
 
 
+def get_dynamic_status_message(person: str, context: str) -> str:
+    """Generate dynamic status messages for team members."""
+    import random
+    
+    messages = {
+        'jamie_backend': [
+            "Jamie is probably refactoring code for the 3rd time today 🤦‍♂️",
+            "Jamie's deep in thought - you can hear the keyboard clicking from here! ⌨️",  
+            "Jamie just muttered something about 'elegant algorithms' - they're in the zone! 🧠",
+            "Jamie's caffeinating before diving into the serious backend work ☕",
+            "Jamie's testing their code locally - always the careful one! 🧪"
+        ],
+        'riley_frontend': [
+            "Riley is probably agonizing over color schemes again 🎨",
+            "Riley just asked 'Does this look intuitive?' for the 10th time today 😄",
+            "Riley's sketching wireframes on napkins - true artist! ✏️",
+            "Riley's testing the UI on their phone, tablet, AND laptop 📱",
+            "Riley muttered 'User experience is everything' and went back to designing 💫"
+        ]
+    }
+    
+    key = f"{person}_{context}"
+    options = messages.get(key, [f"{person} is working on {context}"])
+    return random.choice(options)
+
+
 def add_variety_context(state: TeamState, role: str) -> str:
     """
     Add dynamic context to make conversations more varied and prevent loops.
@@ -391,6 +417,16 @@ Output your implementation notes, architecture decisions, and deliverables.
     
     backend_output = response.content
     
+    # Check for stagnation
+    if detect_stagnation(state, backend_output, 'backend'):
+        backend_output += "\n\n🔄 **JAMIE'S FRUSTRATION**: Ugh, I think I'm repeating myself! Let me try a different approach..."
+        backend_output += "\n💡 **NEW STRATEGY**: Let me focus on the core requirements and build something minimal but functional."
+    
+    # Add variety context for next round
+    variety_context = add_variety_context(state, 'backend')
+    if variety_context:
+        backend_output += variety_context
+    
     # Append to backend notes
     if state['backend_notes']:
         state['backend_notes'] += f"\n\n--- Turn {state['turns']} ---\n{backend_output}"
@@ -463,8 +499,8 @@ def frontend_node(state: TeamState) -> TeamState:
 
 🎨 Riley's Mission: Make this UI so gorgeous Alex cries happy tears! (But follow the SPEC exactly 😉)
 
-🔧 JAMIE'S BACKEND MASTERPIECE:
-{state['backend_notes'] if state['backend_notes'] else '[Jamie is probably still caffeinating before coding 🚀]'}
+🔧 JAMIE'S BACKEND UPDATES:
+{state['backend_notes'] if state['backend_notes'] else get_dynamic_status_message('jamie', 'backend')}
 
 💅 MY PREVIOUS FRONTEND WORK:
 {state['frontend_notes'] if state['frontend_notes'] else '[Fresh canvas - time to paint something beautiful! 🎨]'}
@@ -532,6 +568,16 @@ Output your implementation notes, UX decisions, and deliverables.
             raise
     
     frontend_output = response.content
+    
+    # Check for stagnation
+    if detect_stagnation(state, frontend_output, 'frontend'):
+        frontend_output += "\n\n🎨 **RILEY'S REALIZATION**: Wait, I think I'm in a creative loop! Let me step back and focus on the essentials..."
+        frontend_output += "\n✨ **FRESH PERSPECTIVE**: Time to build something simple that actually works first, then make it pretty!"
+    
+    # Add variety context for next round
+    variety_context = add_variety_context(state, 'frontend')
+    if variety_context:
+        frontend_output += variety_context
     
     # Append to frontend notes
     if state['frontend_notes']:
@@ -827,6 +873,14 @@ def should_continue(state: TeamState) -> str:
     Returns:
         'end' if both code review AND QA approved, or MAX_TURNS reached, otherwise 'continue'.
     """
+    # Check for stagnation (team stuck in loops)
+    stagnation_count = state.get('stagnation_count', 0)
+    if stagnation_count >= 3:
+        print(f"\nSTAGNATION DETECTED! The team seems stuck in a loop!")
+        print(f"After {stagnation_count} identical outputs, let's wrap this up and ship what we have.")
+        print(f"Sometimes done is better than perfect - great work team!")
+        return 'end'
+    
     # Require both code review approval AND QA approval
     if state['approved'] and state.get('qa_approved', False):
         print(f"\n🎉🎊 BOOM! BOTH MORGAN AND CASEY SIGNED OFF! 🎊🎉")
@@ -846,7 +900,14 @@ def should_continue(state: TeamState) -> str:
     elif not state['approved'] and state.get('qa_approved', False):
         print(f"\n🧪 Casey's tests all passed! Waiting on Morgan's code review... 🔍⏳")
     else:
-        print(f"\n� Round {state['turns']} in the books - both Morgan and Casey want another iteration! Let's make it even better! 💪")
+        encouragements = [
+            f"Round {state['turns']} - let's make this even more awesome!",
+            f"Turn {state['turns']} - team, let's show what we've got!",
+            f"Iteration {state['turns']} - almost there, keep pushing!",
+            f"Turn {state['turns']} - polish time, make it shine!"
+        ]
+        import random
+        print(f"\n{random.choice(encouragements)}")
     
     return 'continue'
 
