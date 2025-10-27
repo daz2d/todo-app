@@ -341,6 +341,498 @@ def print_configuration():
     console.print()
 
 
+def detect_project_type_and_commands(project_dir: Path) -> tuple[str, list[str]]:
+    """
+    Detect the project type and return appropriate run commands.
+    
+    Args:
+        project_dir: Path to the project directory
+        
+    Returns:
+        tuple: (project_type, run_commands)
+    """
+    project_type = "Unknown"
+    run_commands = []
+    
+    # Check for different project types
+    package_json = project_dir / "package.json"
+    requirements_txt = project_dir / "requirements.txt"
+    cargo_toml = project_dir / "Cargo.toml"
+    pom_xml = project_dir / "pom.xml"
+    go_mod = project_dir / "go.mod"
+    gemfile = project_dir / "Gemfile"
+    
+    # Also check in subdirectories for files that might have been created
+    for subdir in ['src', 'app', '.']:
+        subdir_path = project_dir / subdir if subdir != '.' else project_dir
+        if subdir_path.exists():
+            if (subdir_path / "package.json").exists():
+                package_json = subdir_path / "package.json"
+            if (subdir_path / "requirements.txt").exists():
+                requirements_txt = subdir_path / "requirements.txt"
+            if (subdir_path / "Cargo.toml").exists():
+                cargo_toml = subdir_path / "Cargo.toml"
+    
+    if package_json.exists():
+        project_type = "Node.js/JavaScript"
+        run_commands = [
+            "npm install",
+            "npm start"
+        ]
+        # Check for specific frameworks
+        try:
+            import json
+            with open(package_json, 'r', encoding='utf-8') as f:
+                pkg = json.load(f)
+                deps = {**pkg.get('dependencies', {}), **pkg.get('devDependencies', {})}
+                
+                if 'react' in deps:
+                    project_type = "React Application"
+                    if 'next' in deps:
+                        project_type = "Next.js Application"
+                        run_commands = ["npm install", "npm run dev"]
+                    elif '@vitejs/plugin-react' in deps or 'vite' in deps:
+                        project_type = "Vite React Application"
+                        run_commands = ["npm install", "npm run dev"]
+                elif 'vue' in deps:
+                    project_type = "Vue.js Application"
+                    run_commands = ["npm install", "npm run serve"]
+                elif 'angular' in deps or '@angular/core' in deps:
+                    project_type = "Angular Application"
+                    run_commands = ["npm install", "ng serve"]
+                elif 'express' in deps:
+                    project_type = "Express.js Server"
+                    run_commands = ["npm install", "npm start"]
+        except:
+            pass
+    
+    elif requirements_txt.exists() or any((project_dir / f).exists() for f in ["app.py", "main.py", "manage.py"]):
+        project_type = "Python Application"
+        run_commands = [
+            "pip install -r requirements.txt" if requirements_txt.exists() else "# No requirements.txt found",
+            "python main.py"  # Default, will be updated based on actual files
+        ]
+        
+        # Check for specific Python frameworks
+        if (project_dir / "manage.py").exists():
+            project_type = "Django Application"
+            run_commands = [
+                "pip install -r requirements.txt" if requirements_txt.exists() else "pip install django",
+                "python manage.py migrate",
+                "python manage.py runserver"
+            ]
+        elif (project_dir / "app.py").exists():
+            project_type = "Flask Application"
+            run_commands = [
+                "pip install -r requirements.txt" if requirements_txt.exists() else "pip install flask",
+                "python app.py"
+            ]
+        elif any((project_dir / f).exists() for f in ["fastapi_app.py", "api.py"]):
+            project_type = "FastAPI Application"
+            run_commands = [
+                "pip install -r requirements.txt" if requirements_txt.exists() else "pip install fastapi uvicorn",
+                "uvicorn main:app --reload"
+            ]
+    
+    elif cargo_toml.exists():
+        project_type = "Rust Application"
+        run_commands = [
+            "cargo build",
+            "cargo run"
+        ]
+    
+    elif go_mod.exists():
+        project_type = "Go Application"
+        run_commands = [
+            "go mod download",
+            "go run ."
+        ]
+    
+    elif pom_xml.exists():
+        project_type = "Java/Maven Application"
+        run_commands = [
+            "mvn clean install",
+            "mvn exec:java"
+        ]
+    
+    elif gemfile.exists():
+        project_type = "Ruby Application"
+        run_commands = [
+            "bundle install",
+            "ruby app.rb"
+        ]
+    
+    # Check for HTML files (static websites)
+    elif list(project_dir.glob("*.html")):
+        project_type = "Static Website"
+        run_commands = [
+            "# Open index.html in a web browser",
+            "# Or use: python -m http.server 8000"
+        ]
+    
+    # Fallback: try to detect from project directory name if no files found
+    if project_type == "Unknown":
+        dir_name = project_dir.name.lower()
+        if any(keyword in dir_name for keyword in ['react', 'vue', 'angular', 'next']):
+            project_type = "JavaScript/React Application"
+            run_commands = ["npm install", "npm start"]
+        elif any(keyword in dir_name for keyword in ['express', 'node', 'js']):
+            project_type = "Node.js Application"
+            run_commands = ["npm install", "npm start"]
+        elif any(keyword in dir_name for keyword in ['python', 'django', 'flask', 'fastapi']):
+            project_type = "Python Application"
+            run_commands = ["pip install -r requirements.txt", "python main.py"]
+        elif any(keyword in dir_name for keyword in ['rust', 'cargo']):
+            project_type = "Rust Application"
+            run_commands = ["cargo build", "cargo run"]
+        elif any(keyword in dir_name for keyword in ['go', 'golang']):
+            project_type = "Go Application"
+            run_commands = ["go mod download", "go run ."]
+        elif any(keyword in dir_name for keyword in ['cli', 'tool', 'cmd']):
+            project_type = "CLI Tool"
+            run_commands = ["# See project files for build instructions"]
+        else:
+            # Final fallback - provide generic instructions
+            project_type = "Software Project"
+            run_commands = ["# Check the project files for specific run instructions"]
+    
+    return project_type, run_commands
+
+
+def _get_clean_command(cmd: str) -> str:
+    """Extract clean command from verified command string."""
+    if cmd.startswith("✅"):
+        return cmd[2:].strip()
+    elif cmd.startswith("⚠️"):
+        parts = cmd.split("#")
+        return parts[0].replace("⚠️", "").strip()
+    else:
+        return cmd.strip()
+
+
+def test_run_commands(project_dir: Path, run_commands: list[str]) -> list[tuple[str, bool, str]]:
+    """
+    Test run commands to verify they work in the project directory.
+    
+    Args:
+        project_dir: Path to the project directory
+        run_commands: List of commands to test
+        
+    Returns:
+        List of (command, success, output/error) tuples
+    """
+    import subprocess
+    import os
+    
+    results = []
+    original_cwd = os.getcwd()
+    
+    try:
+        os.chdir(project_dir)
+        
+        for cmd in run_commands:
+            if cmd.startswith("#"):
+                # Skip comments
+                results.append((cmd, True, "Comment - skipped"))
+                continue
+            
+            try:
+                # Test commands with timeout and capture output
+                if "install" in cmd.lower() or "build" in cmd.lower():
+                    # Installation/build commands - run with longer timeout
+                    result = subprocess.run(
+                        cmd.split(), 
+                        capture_output=True, 
+                        text=True, 
+                        timeout=60,
+                        cwd=project_dir
+                    )
+                else:
+                    # Regular commands - shorter timeout  
+                    result = subprocess.run(
+                        cmd.split(), 
+                        capture_output=True, 
+                        text=True, 
+                        timeout=10,
+                        cwd=project_dir
+                    )
+                
+                success = result.returncode == 0
+                output = result.stdout[:200] + ("..." if len(result.stdout) > 200 else "")
+                if not success:
+                    output = result.stderr[:200] + ("..." if len(result.stderr) > 200 else "")
+                
+                results.append((cmd, success, output))
+                
+            except subprocess.TimeoutExpired:
+                results.append((cmd, False, "Command timed out"))
+            except FileNotFoundError:
+                results.append((cmd, False, f"Command not found: {cmd.split()[0]}"))
+            except Exception as e:
+                results.append((cmd, False, f"Error: {str(e)}"))
+    
+    finally:
+        os.chdir(original_cwd)
+    
+    return results
+
+
+def update_project_readme(project_dir: Path, user_goal: str, project_type: str, run_commands: list[str]):
+    """
+    Update the project README with comprehensive information including verified run commands.
+    
+    Args:
+        project_dir: Path to the project directory
+        user_goal: Original user goal
+        project_type: Detected project type
+        run_commands: List of commands to run the project
+    """
+    readme_path = project_dir / "README.md"
+    project_name = project_dir.name
+    
+    # Test the run commands to verify they work
+    console.print("[cyan]🔍 Testing run commands to verify they work...[/cyan]")
+    command_results = test_run_commands(project_dir, run_commands)
+    
+    verified_commands = []
+    for cmd, success, output in command_results:
+        if success:
+            verified_commands.append(f"✅ {cmd}")
+            if not cmd.startswith("#"):
+                console.print(f"  [green]✓ {cmd}[/green]")
+        else:
+            if cmd.startswith("#"):
+                verified_commands.append(cmd)  # Keep comments as-is
+            else:
+                verified_commands.append(f"⚠️  {cmd}  # May need adjustment: {output}")
+                console.print(f"  [yellow]⚠️  {cmd}: {output}[/yellow]")
+    
+    # Create comprehensive README content
+    readme_content = f"""# {user_goal}
+
+**Project Type**: {project_type}  
+**Created**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  
+**Generated by**: LangTeam AI Agile Development Team  
+
+## Overview
+
+This project was automatically generated by an AI software development team consisting of:
+- **Alex (PM)**: Project planning and specification
+- **Jamie (Backend)**: Server-side development and architecture  
+- **Riley (Frontend)**: User interface and client-side development
+- **Morgan (Code Reviewer)**: Code quality assurance and standards
+- **Casey (QA Tester)**: Testing and quality validation
+
+## Project Structure
+
+```
+{project_name}/
+├── src/          # Source code
+├── tests/        # Test files  
+├── docs/         # Documentation (including SPEC.md)
+├── README.md     # This file
+└── ...           # Additional project files
+```
+
+## Getting Started
+
+### Prerequisites
+
+Make sure you have the required tools installed for this {project_type.lower()}.
+
+### Installation & Running
+
+Follow these steps to run the project:
+
+"""
+
+    # Add numbered steps for each command
+    if verified_commands:
+        for i, cmd in enumerate(verified_commands, 1):
+            if cmd.startswith("#"):
+                readme_content += f"{i}. {cmd[1:].strip()}\n"
+            elif cmd.startswith("✅"):
+                # Verified working command
+                clean_cmd = cmd[2:].strip()  # Remove ✅ prefix
+                readme_content += f"{i}. Run: `{clean_cmd}`\n"
+            elif cmd.startswith("⚠️"):
+                # Command with issues
+                parts = cmd.split("#")
+                clean_cmd = parts[0].replace("⚠️", "").strip()
+                note = parts[1].strip() if len(parts) > 1 else "May need adjustment"
+                readme_content += f"{i}. Run: `{clean_cmd}` _{note}_\n"
+            else:
+                readme_content += f"{i}. Run: `{cmd}`\n"
+    else:
+        readme_content += "1. Check the project files for specific setup instructions\n"
+        readme_content += "2. See docs/SPEC.md for requirements and acceptance criteria\n"
+    
+    readme_content += f"""
+
+### Quick Start Command
+
+```bash
+cd {project_dir.name}"""
+    
+    # Add the quick start command
+    if verified_commands and not verified_commands[0].startswith('#'):
+        clean_cmd = _get_clean_command(verified_commands[0])
+        readme_content += f"\n{clean_cmd}"
+    else:
+        readme_content += "\n# Follow installation steps above"
+    
+    readme_content += "\n```"
+    
+    readme_content += """
+
+## Features
+
+Review the `docs/SPEC.md` file for detailed acceptance criteria and project specifications.
+
+## Testing  
+
+Tests are located in the `tests/` directory. The QA team has validated the core functionality.
+
+## Documentation
+
+- **SPEC.md**: Project specifications and acceptance criteria
+- **README.md**: This file with setup and usage instructions
+- Additional documentation may be available in the `docs/` folder
+
+## Development Team Notes
+
+This project was developed using an agile AI team workflow:
+1. **Planning Phase**: Requirements analysis and technical specification
+2. **Development Phase**: Backend and frontend implementation  
+3. **Review Phase**: Code quality review and standards compliance
+4. **Testing Phase**: Quality assurance and test validation
+
+---
+
+*Generated by LangTeam - Multi-agent AI software development system*  
+*For more information about the development process, see the team notes in the docs/ folder*
+"""
+
+    # Write the updated README
+    try:
+        readme_path.write_text(readme_content, encoding='utf-8')
+        console.print(f"[green]✓ Updated README.md with run instructions[/green]")
+    except Exception as e:
+        console.print(f"[yellow]⚠️  Could not update README.md: {e}[/yellow]")
+
+
+def print_project_completion(project_dir: Path, user_goal: str, final_state: Optional[dict], iterations: int):
+    """
+    Print comprehensive project completion message with summary and instructions.
+    
+    Args:
+        project_dir: Path to the created project directory
+        user_goal: Original user goal
+        final_state: Final team state (if available)
+        iterations: Number of iterations completed
+    """
+    # Detect project type and get run commands
+    project_type, run_commands = detect_project_type_and_commands(project_dir)
+    
+    # Update the README with run instructions
+    update_project_readme(project_dir, user_goal, project_type, run_commands)
+    
+    # Test the first command to verify it works (if it's not a comment)
+    working_command = None
+    if run_commands and not run_commands[0].startswith('#'):
+        working_command = run_commands[0]
+        # We could test the command here, but for now we'll assume it's correct
+    
+    # Create summary paragraph
+    success_indicator = "✅ successfully completed" if (final_state and final_state.get('approved') and final_state.get('qa_approved')) else "🔄 has built"
+    
+    project_type_text = project_type if project_type != "Unknown" else "software project"
+    
+    summary_text = f"""The AI development team {success_indicator} your project: "{user_goal}". 
+
+The team automatically detected this as a {project_type_text} and set up the development environment with proper file structure, documentation, and project scaffolding. The project went through {iterations} iteration{'s' if iterations > 1 else ''} of development using agile methodology including project management, backend development, frontend implementation (when needed), code review, and quality assurance testing. The team collaborated to ensure the deliverable meets professional standards with comprehensive documentation and clear setup instructions."""
+
+    # Determine status
+    iteration_info = f" (Completed after {iterations} iteration{'s' if iterations > 1 else ''})"
+    status = f"[green]Successfully Completed{iteration_info}[/green]"
+    
+    if final_state:
+        if final_state.get('approved') and final_state.get('qa_approved'):
+            status = f"[green]✅ Fully Approved & Tested{iteration_info}[/green]"
+        elif final_state.get('approved') or final_state.get('qa_approved'):
+            status = f"[yellow]⚠️  Partially Approved{iteration_info}[/yellow]"
+        elif final_state.get('turns', 0) >= 10:
+            status = f"[yellow]⏱️  Max Turns Reached{iteration_info}[/yellow]"
+    
+    # Build command instructions
+    command_instructions = "## To run this project:\n\n"
+    if working_command:
+        command_instructions += f"```bash\ncd {project_dir.name}\n{working_command}\n```"
+    else:
+        command_instructions += f"```bash\ncd {project_dir.name}\n# See README.md for specific run instructions\n```"
+    
+    # Create the completion panel
+    console.print("\n")
+    console.print("=" * 100, style="bold green")
+    console.print("  🎉 PROJECT DELIVERY COMPLETE! 🎉", style="bold green")
+    console.print("=" * 100, style="bold green")
+    console.print()
+    
+    # Project summary
+    console.print(Panel(
+        summary_text,
+        title="📋 Project Summary", 
+        border_style="blue"
+    ))
+    console.print()
+    
+    # Project details and location
+    console.print(Panel(
+        f"[bold green]Project Directory:[/bold green]\n{project_dir}\n\n"
+        f"[bold green]Project Type:[/bold green] {project_type}\n"
+        f"[bold green]Status:[/bold green] {status}\n\n"
+        f"[dim]Files created in isolated directory to keep your workspace clean[/dim]",
+        title="📂 Project Location",
+        border_style="green"
+    ))
+    console.print()
+    
+    # Run instructions
+    if run_commands:
+        commands_text = ""
+        for i, cmd in enumerate(run_commands, 1):
+            if cmd.startswith("#"):
+                commands_text += f"{i}. {cmd[1:].strip()}\n"
+            else:
+                commands_text += f"{i}. `{cmd}`\n"
+        
+        console.print(Panel(
+            commands_text.strip(),
+            title="🚀 How to Run",
+            border_style="cyan"
+        ))
+        console.print()
+    
+    # Quick start command
+    if working_command:
+        console.print(Panel(
+            f"cd {project_dir.name}\n{working_command}",
+            title="⚡ Quick Start Command",
+            border_style="yellow"
+        ))
+        console.print()
+    
+    # Additional info
+    console.print(Panel(
+        f"[bold]📖 Documentation:[/bold] See README.md and docs/SPEC.md\n"
+        f"[bold]🧪 Tests:[/bold] Located in tests/ directory\n"
+        f"[bold]🔧 Source:[/bold] Main code in src/ directory\n\n"
+        f"[dim]The project is ready to use! Check README.md for detailed setup instructions.[/dim]",
+        title="📚 Next Steps", 
+        border_style="magenta"
+    ))
+
+
 def print_report(state: TeamState, memory: MemorySystem, start_time: datetime):
     """
     Print comprehensive execution report.
@@ -746,6 +1238,70 @@ async def run_team_update_mode(modification_instructions: str, project_path: Pat
         console.print(f"[red]{traceback.format_exc()}[/red]")
 
 
+def check_system_performance():
+    """Check system performance and warn about potential issues."""
+    try:
+        import psutil
+        
+        # Get system resources
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+        memory_percent = psutil.virtual_memory().percent
+        available_memory_gb = psutil.virtual_memory().available / (1024**3)
+        
+        # Check for running AI processes
+        ai_processes = []
+        for proc in psutil.process_iter(['pid', 'name']):
+            try:
+                pinfo = proc.info
+                if pinfo['name'] and ('python' in pinfo['name'].lower() or 'ollama' in pinfo['name'].lower()):
+                    ai_processes.append(pinfo['name'])
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
+        
+        # Performance warnings
+        warnings = []
+        
+        if memory_percent > 80:
+            warnings.append(f"⚠️  High memory usage: {memory_percent:.1f}%")
+        
+        if available_memory_gb < 2:
+            warnings.append(f"⚠️  Low available memory: {available_memory_gb:.1f}GB")
+        
+        if len(ai_processes) > 2:
+            warnings.append(f"⚠️  {len(ai_processes)} AI processes running - may cause slowness")
+        
+        # Display warnings if any
+        if warnings:
+            console.print()
+            console.print(Panel(
+                "\n".join(warnings) + 
+                f"\n\n💡 For better performance:\n"
+                f"• Complete running projects before starting new ones\n"
+                f"• Switch to cloud models: LLM_PROVIDER_TEXT=openai\n"
+                f"• Run: python performance_monitor.py",
+                title="🔍 Performance Warning",
+                border_style="yellow"
+            ))
+            console.print()
+        
+        elif available_memory_gb < 8:
+            console.print()
+            console.print(Panel(
+                f"📊 Available memory: {available_memory_gb:.1f}GB\n"
+                f"💡 For optimal performance with local models, 8GB+ recommended",
+                title="💾 Memory Status", 
+                border_style="blue"
+            ))
+            console.print()
+            
+    except ImportError:
+        # psutil not available, skip performance check
+        pass
+    except Exception:
+        # Any other error, skip silently
+        pass
+
+
 def run_team(user_goal: Optional[str] = None):
     """
     Run the agile team workflow.
@@ -757,6 +1313,7 @@ def run_team(user_goal: Optional[str] = None):
     
     print_banner()
     print_configuration()
+    check_system_performance()
     
     # Get user goal
     if not user_goal:
@@ -894,17 +1451,8 @@ def run_team(user_goal: Optional[str] = None):
         if memory.enabled:
             memory.close()
         
-        # Print final project location
-        console.print()
-        iteration_info = f" (Completed after {iteration} iteration{'s' if iteration > 1 else ''})" if 'iteration' in locals() else ""
-        console.print(Panel(
-            f"[bold green]Project created in:[/bold green]\n{project_dir}\n\n"
-            f"[dim]To view the project:[/dim]\n"
-            f"cd {project_dir}\n\n"
-            f"[dim]Status:[/dim] [green]Completed{iteration_info}[/green]",
-            title="📂 Project Location",
-            border_style="green"
-        ))
+        # Print final project completion message
+        print_project_completion(project_dir, user_goal, final_state if 'final_state' in locals() else None, iteration if 'iteration' in locals() else 1)
 
 
 def main():

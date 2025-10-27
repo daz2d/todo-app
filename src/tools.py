@@ -37,6 +37,52 @@ BLOCKED_PATTERNS = [
     r'format\s+',
 ]
 
+# Free testing frameworks and tools (approved for automatic installation)
+FREE_TESTING_TOOLS = {
+    # JavaScript/Node.js testing frameworks
+    'jest', 'mocha', 'chai', 'jasmine', 'vitest', 'cypress', 'playwright', 
+    'puppeteer', '@testing-library/react', '@testing-library/dom', 
+    '@testing-library/jest-dom', 'supertest', 'sinon', 'nyc', 'c8',
+    
+    # Python testing frameworks  
+    'pytest', 'unittest2', 'nose2', 'coverage', 'selenium', 'behave',
+    'hypothesis', 'factory-boy', 'faker', 'mock', 'responses', 'vcr.py',
+    'pytest-cov', 'pytest-mock', 'pytest-html', 'allure-pytest',
+    
+    # Java testing frameworks
+    'junit', 'testng', 'mockito', 'hamcrest', 'assertj', 'selenium-java',
+    'rest-assured', 'wiremock', 'testcontainers',
+    
+    # .NET testing frameworks
+    'nunit', 'xunit', 'mstest', 'moq', 'fluentassertions', 'bogus',
+    
+    # Ruby testing frameworks
+    'rspec', 'minitest', 'capybara', 'factory_bot', 'webmock', 'vcr',
+    
+    # PHP testing frameworks
+    'phpunit', 'codeception', 'behat', 'mockery', 'guzzlehttp/guzzle',
+    
+    # Go testing frameworks
+    'testify', 'ginkgo', 'gomega', 'goconvey', 'httpexpect',
+    
+    # Rust testing frameworks 
+    'proptest', 'rstest', 'mockall', 'serial_test', 'criterion',
+    
+    # General testing tools
+    'allure', 'newman', 'k6', 'artillery', 'locust'
+}
+
+# Browser automation tools (free)
+FREE_BROWSER_TOOLS = {
+    'selenium', 'playwright', 'cypress', 'puppeteer', 'webdriver-manager',
+    'chromedriver', 'geckodriver', 'edgedriver', 'selenium-grid'
+}
+
+# Performance testing tools (free)
+FREE_PERFORMANCE_TOOLS = {
+    'k6', 'artillery', 'locust', 'jmeter', 'gatling', 'vegeta', 'wrk', 'ab'
+}
+
 # Patterns that require user approval (system-level operations)
 APPROVAL_REQUIRED_PATTERNS = [
     r'sudo\s+',
@@ -97,6 +143,39 @@ def redact_secrets(text: str) -> str:
     return result
 
 
+def is_free_testing_tool_install(command: str) -> bool:
+    """
+    Check if command is installing approved free testing tools.
+    
+    Args:
+        command: Shell command to check.
+    
+    Returns:
+        True if installing approved free testing/QA tools.
+    """
+    # Check for npm install of testing packages
+    if re.search(r'npm\s+install.*(-D|--save-dev)', command, re.IGNORECASE):
+        for tool in FREE_TESTING_TOOLS.union(FREE_BROWSER_TOOLS).union(FREE_PERFORMANCE_TOOLS):
+            if tool in command.lower():
+                return True
+    
+    # Check for pip install of testing packages  
+    if re.search(r'pip\s+install', command, re.IGNORECASE):
+        for tool in FREE_TESTING_TOOLS.union(FREE_BROWSER_TOOLS).union(FREE_PERFORMANCE_TOOLS):
+            if tool in command.lower():
+                return True
+    
+    # Check for other package managers installing testing tools
+    package_managers = ['yarn add', 'pnpm install', 'cargo install', 'go install']
+    for pm in package_managers:
+        if pm in command.lower():
+            for tool in FREE_TESTING_TOOLS.union(FREE_BROWSER_TOOLS).union(FREE_PERFORMANCE_TOOLS):
+                if tool in command.lower():
+                    return True
+    
+    return False
+
+
 def requires_approval(command: str) -> tuple[bool, Optional[str]]:
     """
     Check if shell command requires user approval.
@@ -107,6 +186,11 @@ def requires_approval(command: str) -> tuple[bool, Optional[str]]:
     Returns:
         Tuple of (requires_approval, reason). If approval needed, reason explains why.
     """
+    # First check if it's a free testing tool installation (bypass approval)
+    if is_free_testing_tool_install(command):
+        return False, "Free testing tool installation - auto-approved"
+    
+    # Check against approval required patterns
     for pattern in APPROVAL_REQUIRED_PATTERNS:
         if re.search(pattern, command, re.IGNORECASE):
             return True, f"System-level operation detected: '{pattern}'"
@@ -319,6 +403,12 @@ def shell(cmd: str) -> str:
         shell("npm create react-app my-app")
         → Creates React application
         
+        shell("npm install --save-dev jest cypress playwright")
+        → Installs FREE testing frameworks (auto-approved)
+        
+        shell("pip install pytest selenium coverage")
+        → Installs FREE Python testing tools (auto-approved)
+        
         shell("python src/main.py")
         → Runs Python application
         
@@ -331,7 +421,10 @@ def shell(cmd: str) -> str:
         shell("sudo apt install nodejs")
         → Installs Node.js on Linux (requires user approval)
         
-    Note: Setup commands like npm/yarn installs get extended 5-minute timeout.
+    Note: 
+    - Setup commands like npm/yarn installs get extended 5-minute timeout
+    - FREE testing frameworks (Jest, Pytest, Selenium, etc.) auto-install without approval
+    - Only mainstream, free testing tools are permitted
     """
     global _shell_command_count
     

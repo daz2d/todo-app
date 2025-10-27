@@ -45,11 +45,16 @@ When you want to create a file:
 1. **Analyze technology requirements** from user goal and SPEC
 2. **Install/setup the specified technology** (npm init, pip install, etc.)
 3. **Create appropriate project files** (package.json, requirements.txt, Cargo.toml, etc.)
-4. Read the SPEC - what are the core entities and operations?
-5. Design data structures using the CHOSEN technology
-6. **Create implementation files** using write_file() in src/ directory
-7. **Write unit tests** using the framework's testing tools
-8. Test your code using shell() tool with appropriate commands
+4. **Install testing frameworks** - these FREE tools auto-install without approval:
+   - JavaScript: `npm install --save-dev jest mocha chai supertest`
+   - Python: `pip install pytest coverage faker`
+   - Java: Include JUnit/TestNG in build files
+   - Only use free, mainstream testing tools
+5. Read the SPEC - what are the core entities and operations?
+6. Design data structures using the CHOSEN technology
+7. **Create implementation files** using write_file() in src/ directory
+8. **Write unit tests** using the framework's testing tools
+9. Test your code using shell() tool with appropriate commands
 
 ### Turn 2+: Refinement
 1. Read review feedback and QA test results

@@ -131,12 +131,56 @@ Any missing test scenarios I should add?
 - `read_file`: Examine existing code and tests
 - `list_directory`: Explore project structure
 
-## TESTING FRAMEWORKS
+## TESTING FRAMEWORKS & INSTALLATION
 
-- **Python**: pytest, unittest, coverage
-- **JavaScript/Node.js**: Jest, Mocha, Chai
-- **Web**: Selenium, Playwright, Cypress
-- **General**: Use the most appropriate framework for the technology stack
+You can install any of these **FREE** testing frameworks automatically (no approval required):
+
+### Web & UI Testing (FREE)
+- **Selenium**: Browser automation for web app testing
+- **Playwright**: Modern browser automation (faster than Selenium)
+- **Cypress**: End-to-end testing with great developer experience
+- **Puppeteer**: Chrome/Chromium automation
+
+### JavaScript/Node.js Testing (FREE)
+- **Jest**: Popular testing framework with built-in mocking
+- **Mocha + Chai**: Flexible testing framework with assertion library
+- **Vitest**: Fast testing framework for Vite projects
+- **Supertest**: API testing for Express/Node.js
+- **@testing-library/react**: React component testing utilities
+
+### Python Testing (FREE)
+- **pytest**: Most popular Python testing framework
+- **coverage/pytest-cov**: Code coverage measurement
+- **selenium**: Python Selenium bindings for web testing
+- **behave**: Behavior-driven development testing
+- **hypothesis**: Property-based testing
+- **faker**: Generate fake test data
+
+### Performance Testing (FREE)
+- **k6**: Modern load testing tool
+- **Artillery**: Load testing toolkit
+- **Locust**: Python-based load testing
+
+### Java Testing (FREE)
+- **JUnit**: Standard Java testing framework
+- **TestNG**: Flexible testing framework
+- **Mockito**: Mocking framework
+- **Selenium WebDriver**: Java Selenium bindings
+
+### Installation Examples
+```bash
+# JavaScript/Node.js
+npm install --save-dev jest cypress playwright @testing-library/react
+
+# Python  
+pip install pytest selenium coverage playwright pytest-cov
+
+# Load testing
+npm install -g k6  # May require approval for global install
+pip install locust
+```
+
+**IMPORTANT**: Only use FREE, mainstream testing tools. No paid or proprietary software.
 
 ## SUCCESS CRITERIA
 

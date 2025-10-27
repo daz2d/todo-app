@@ -47,13 +47,17 @@ When you want to create a file:
 2. **IF CLI/API/Library project**: Focus on user interface design (command syntax, help text, error messages, documentation)
 3. **IF UI project**: Analyze frontend technology requirements from user goal and SPEC
 4. **Setup appropriate interface** (CLI parsing, web framework, desktop app, etc.)
-5. **Create interface structure** (CLI commands, web pages, app screens, etc.)
-6. Read the SPEC - what do users need to do?
-7. Check backend notes - what functions/APIs are available?
-8. **Create the interface components** using write_file() in appropriate directories
-9. Wire it to backend functionality using the chosen technology
-10. **Write interface/integration tests** using appropriate testing framework
-11. Test using shell() tool with technology-specific commands
+5. **Install UI testing frameworks** - these FREE tools auto-install without approval:
+   - Web UI: `npm install --save-dev @testing-library/react cypress playwright`
+   - CLI testing: `npm install --save-dev jest` or `pip install pytest`
+   - Only use free, mainstream testing tools
+6. **Create interface structure** (CLI commands, web pages, app screens, etc.)
+7. Read the SPEC - what do users need to do?
+8. Check backend notes - what functions/APIs are available?
+9. **Create the interface components** using write_file() in appropriate directories
+10. Wire it to backend functionality using the chosen technology
+11. **Write interface/integration tests** using appropriate testing framework
+12. Test using shell() tool with technology-specific commands
 
 ### Special Handling for CLI/API Projects:
 - **CLI Tools**: Focus on argument parsing, help text, error handling, progress indicators
