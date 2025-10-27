@@ -906,6 +906,62 @@ Only approve if ALL requirements tested AND you've shown PM your coverage plan!
 
 # Routing Logic
 
+def needs_frontend(state: TeamState) -> str:
+    """
+    Decide if project needs frontend work based on SPEC analysis.
+    
+    Returns:
+        'frontend' if UI work is needed, 'reviewer' if CLI/API/library project.
+    """
+    spec = state.get('spec', '').lower()
+    
+    # Keywords indicating NO FRONTEND needed (CLI/API/Library)
+    no_frontend_keywords = [
+        'cli', 'command line', 'command-line', 'terminal', 'console',
+        'api', 'rest api', 'graphql', 'microservice', 'service', 'backend service',
+        'library', 'sdk', 'framework', 'package', 'module',
+        'script', 'utility', 'tool', 'processor', 'converter',
+        'daemon', 'worker', 'batch', 'cron', 'scheduler',
+        'parser', 'analyzer', 'validator', 'generator',
+        'database tool', 'migration', 'seed script'
+    ]
+    
+    # Keywords indicating FRONTEND needed (UI)
+    frontend_keywords = [
+        'web app', 'website', 'dashboard', 'interface', 'gui', 'ui',
+        'react', 'vue', 'angular', 'svelte', 'html', 'css',
+        'mobile app', 'desktop app', 'electron', 'tauri',
+        'game', 'interactive', 'visualization', 'chart',
+        'form', 'login', 'signup', 'profile', 'settings'
+    ]
+    
+    # Check for explicit no-frontend indicators
+    for keyword in no_frontend_keywords:
+        if keyword in spec:
+            print(f"\n🔧 SMART ROUTING: Detected '{keyword}' project")
+            print(f"   └─ Skipping Riley (Frontend) - no UI needed for this project")
+            print(f"   └─ Moving directly to Morgan (Code Review)")
+            return 'reviewer'
+    
+    # Check for explicit frontend indicators  
+    for keyword in frontend_keywords:
+        if keyword in spec:
+            print(f"\n🎨 SMART ROUTING: Detected UI project ('{keyword}')")
+            print(f"   └─ Including Riley (Frontend) - UI work needed")
+            return 'frontend'
+    
+    # Analyze tasks for patterns
+    tasks = state.get('spec', '')
+    if 'FE-' not in tasks and ('BE-' in tasks or 'P0' in tasks):
+        print(f"\n🔧 SMART ROUTING: No frontend tasks found in SPEC")
+        print(f"   └─ Appears to be CLI/API project - skipping UI work")
+        return 'reviewer'
+    
+    # Default to including frontend if uncertain
+    print(f"\n🎨 SMART ROUTING: Project type unclear - including frontend work to be safe")
+    return 'frontend'
+
+
 def should_continue(state: TeamState) -> str:
     """
     Decide whether to continue iteration or end.
@@ -970,10 +1026,20 @@ def create_team_graph():
     workflow.add_node("reviewer", reviewer_node)
     workflow.add_node("qa_tester", qa_tester_node)
     
-    # Add edges (workflow sequence)
+    # Add edges (workflow sequence with conditional frontend)
     workflow.set_entry_point("pm")
     workflow.add_edge("pm", "backend")
-    workflow.add_edge("backend", "frontend")
+    
+    # Conditional edge: backend → frontend (if UI needed) or reviewer (if CLI/API)
+    workflow.add_conditional_edges(
+        "backend",
+        needs_frontend,
+        {
+            "frontend": "frontend",
+            "reviewer": "reviewer"
+        }
+    )
+    
     workflow.add_edge("frontend", "reviewer")
     workflow.add_edge("reviewer", "qa_tester")
     

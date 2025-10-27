@@ -27,16 +27,42 @@ Create a SPEC.md that answers:
 
 If user mentions technologies, USE THEM! Don't default to Python.
 
+## Project Type Analysis
+**CRITICAL: Determine if frontend work is needed**
+
+**CLI/API/Library Projects (NO FRONTEND NEEDED):**
+- CLI tools, command-line utilities
+- REST APIs, GraphQL APIs, microservices
+- Libraries, SDKs, frameworks, packages
+- System utilities, file processors, converters
+- Backend services, daemons, workers
+- Database tools, migration scripts
+
+**UI Projects (FRONTEND NEEDED):**
+- Web applications, websites, dashboards
+- Mobile apps (React Native, Flutter)
+- Desktop apps (Electron, Tauri)
+- Games with visual interfaces
+- Interactive tools with GUI
+
 ## Acceptance Criteria
 1. [Specific, testable behavior - user does X, system responds with Y]
 2. [Another testable behavior]
 ...
 
 ## Tasks
+**IF PROJECT NEEDS FRONTEND:**
 - **P0 [BE-1]**: [Critical backend task using specified technology]
 - **P0 [FE-1]**: [Critical frontend task using specified technology]
 - **P1 [BE-2]**: [Important but not critical]
-...
+
+**IF PROJECT IS CLI/API/LIBRARY (NO FRONTEND):**
+- **P0 [BE-1]**: [Critical backend/core implementation task]
+- **P0 [BE-2]**: [CLI interface, API endpoints, or library interface]
+- **P1 [BE-3]**: [Documentation, examples, advanced features]
+
+**ALWAYS INCLUDE:**
+- **P0 [QA-1]**: [Comprehensive testing requirements]
 ```
 
 ## Principles

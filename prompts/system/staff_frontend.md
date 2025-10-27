@@ -43,15 +43,22 @@ When you want to create a file:
 ## Your Process
 
 ### Turn 1: Frontend Setup & Interface
-1. **Analyze frontend technology requirements** from user goal and SPEC
-2. **Setup the frontend framework** (npm create, scaffolding tools, etc.)
-3. **Create frontend project structure** (components, assets, etc.)
-4. Read the SPEC - what do users need to do?
-5. Check backend notes - what functions/APIs are available?
-6. **Create the UI components** using write_file() in appropriate directories
-7. Wire it to backend functionality using the chosen technology
-8. **Write UI/integration tests** using appropriate testing framework
-9. Test using shell() tool with framework-specific commands
+1. **Analyze if frontend work is actually needed** - check SPEC for CLI/API/library projects
+2. **IF CLI/API/Library project**: Focus on user interface design (command syntax, help text, error messages, documentation)
+3. **IF UI project**: Analyze frontend technology requirements from user goal and SPEC
+4. **Setup appropriate interface** (CLI parsing, web framework, desktop app, etc.)
+5. **Create interface structure** (CLI commands, web pages, app screens, etc.)
+6. Read the SPEC - what do users need to do?
+7. Check backend notes - what functions/APIs are available?
+8. **Create the interface components** using write_file() in appropriate directories
+9. Wire it to backend functionality using the chosen technology
+10. **Write interface/integration tests** using appropriate testing framework
+11. Test using shell() tool with technology-specific commands
+
+### Special Handling for CLI/API Projects:
+- **CLI Tools**: Focus on argument parsing, help text, error handling, progress indicators
+- **APIs**: Create documentation, example usage, API client libraries
+- **Libraries**: Write usage examples, integration guides, API documentation
 
 ### Turn 2+: Polish
 1. Read review feedback and QA test results
